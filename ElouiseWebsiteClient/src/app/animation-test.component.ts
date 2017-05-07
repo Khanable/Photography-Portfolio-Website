@@ -1,5 +1,10 @@
 import { Component } from '@angular/core';
-import { trigger, state, style, animate, transition } from '@angular/animations';
+import { trigger, state, style, animate, transition, keyframes, AnimationEvent } from '@angular/animations';
+
+class AnimationState { 
+	static CategoryView: string = 'categoryview';
+	static Selected: string = 'selected';
+}
 
 @Component({
 	selector: 'animationTest',
@@ -9,22 +14,43 @@ import { trigger, state, style, animate, transition } from '@angular/animations'
 	],
 	animations: [
 		trigger('eleState', [
-			state('inactive', style({
+			state(AnimationState.CategoryView, style({
 				backgroundColor: '#eee',
 				transform: 'scale(1)'
 			})),
-			state('active', style({
+			state(AnimationState.Selected, style({
 				backgroundColor: '#cfd8dc',
 				transform: 'scale(1.1)',
 			})),
-			transition('inactive => active', animate('100ms ease-in')),
-			transition('active => inactive', animate('100ms ease-out')),
+			transition('* => selected', animate('100ms ease-in')),
+			transition('* => categoryview', 
+				animate('100ms ease-out', keyframes([
+					style({
+						transform: 'translatex(90px)',
+						offset: 0,
+					}),
+					style({
+						transform: 'translatex(-90px)',
+						offset: 1,
+					}),
+			]))),
 		])
 	]
 })
 export class AnimationTestComponent {
-	state: String = 'inactive';
-	toggleState(): void {
-		this.state == 'inactive' ? this.state = 'active' : this.state = 'inactive';
+	categories: Category[] = [
+		new Category(),
+		new Category(),
+	];
+}
+
+
+class Category {
+	animationState: AnimationState = AnimationState.CategoryView;
+	toggleAnimationState(): void {
+		this.animationState == AnimationState.CategoryView ? this.animationState = AnimationState.Selected : this.animationState  = AnimationState.CategoryView;
+	}
+	animationStart(e: AnimationEvent): void {
+		console.log('start');
 	}
 }

@@ -1,1 +1,4 @@
-<div class=block [@eleState]='state' (click)='toggleState()'></div>
+<div>
+	<div (click)='category.toggleAnimationState()' [@eleState]='category.animationState' class=category *ngFor='let category of categories' (@eleState.start)='category.animationStart($event)'>
+	</div>
+</div>
