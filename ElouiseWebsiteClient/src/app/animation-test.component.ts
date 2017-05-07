@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, EventEmitter, Output, Input } from '@angular/core';
 import { trigger, state, style, animate, transition, keyframes, AnimationEvent } from '@angular/animations';
 
 class AnimationState { 
@@ -8,12 +8,35 @@ class AnimationState {
 
 @Component({
 	selector: 'animationTest',
-	templateUrl: './animation-test.component.html',
-	styleUrls: [
-		'./animation-test.component.css',
+	template: `
+		<my-category  *ngFor='let cat of categories' [id]='cat' (what)='test()'>
+		</my-category>
+	`,
+})
+export class AnimationTestComponent {
+	categories: number[] = [1, 2];
+	test(): void {
+		console.log('caught event');
+	}
+}
+
+
+@Component({
+	selector: 'my-category',
+	template: `
+		<div class=category [@categoryAnimation]='state' (click)='toggleState()' >
+			{{id}}
+		</div>
+	`,
+	styles: [
+		`.category {
+			width: 200px;
+			height: 200px;
+			background-color: black;
+		}`,
 	],
 	animations: [
-		trigger('eleState', [
+		trigger('categoryAnimation', [
 			state(AnimationState.CategoryView, style({
 				backgroundColor: '#eee',
 				transform: 'scale(1)'
@@ -37,20 +60,13 @@ class AnimationState {
 		])
 	]
 })
-export class AnimationTestComponent {
-	categories: Category[] = [
-		new Category(),
-		new Category(),
-	];
-}
+export class Category {
+	@Input() id: number;
+	@Output('what') toCategoryView: EventEmitter<Category> = new EventEmitter<Category>();
 
-
-class Category {
-	animationState: AnimationState = AnimationState.CategoryView;
-	toggleAnimationState(): void {
-		this.animationState == AnimationState.CategoryView ? this.animationState = AnimationState.Selected : this.animationState  = AnimationState.CategoryView;
-	}
-	animationStart(e: AnimationEvent): void {
-		console.log('start');
+	state: AnimationState = AnimationState.CategoryView;
+	toggleState(): void {
+		this.state == AnimationState.CategoryView ? this.state = AnimationState.Selected : this.state  = AnimationState.CategoryView;
+		this.toCategoryView.emit(this);
 	}
 }
