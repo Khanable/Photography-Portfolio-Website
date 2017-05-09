@@ -8,13 +8,11 @@ import { AppRoutingModule } from './app-routing.module';
 
 import { EntryComponent } from './entry.component';
 import { AnimationTestComponent } from './animation-test.component';
-import { Category } from './animation-test.component';
 
 @NgModule({
   declarations: [
 		EntryComponent,
 		AnimationTestComponent,
-		Category
   ],
   imports: [
 		AppRoutingModule,

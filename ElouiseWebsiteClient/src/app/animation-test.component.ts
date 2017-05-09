@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, Input } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { trigger, state, style, animate, transition, keyframes, AnimationEvent } from '@angular/animations';
 
 class AnimationState { 
@@ -9,23 +9,7 @@ class AnimationState {
 @Component({
 	selector: 'animationTest',
 	template: `
-		<my-category  *ngFor='let cat of categories' [id]='cat' (what)='test()'>
-		</my-category>
-	`,
-})
-export class AnimationTestComponent {
-	categories: number[] = [1, 2];
-	test(): void {
-		console.log('caught event');
-	}
-}
-
-
-@Component({
-	selector: 'my-category',
-	template: `
-		<div class=category [@categoryAnimation]='state' (click)='toggleState()' >
-			{{id}}
+		<div  *ngFor='let cat of categories' class=category [@categoryAnimation]='cat.state' (click)='cat.toggleState()'> 
 		</div>
 	`,
 	styles: [
@@ -60,13 +44,28 @@ export class AnimationTestComponent {
 		])
 	]
 })
-export class Category {
-	@Input() id: number;
-	@Output('what') toCategoryView: EventEmitter<Category> = new EventEmitter<Category>();
+export class AnimationTestComponent implements OnInit {
+	categories: AnimatedCategory[];
+	stateChange(category: AnimatedCategory): void {
+		this.categories.forEach( (e: AnimatedCategory) => e != category ? e.resetState() : null );
+	}
+	ngOnInit(): void {
+		this.categories = [
+			new AnimatedCategory(this),
+			new AnimatedCategory(this),
+		]
+	}
+}
 
+
+class AnimatedCategory {
+	constructor(private rootComponent: AnimationTestComponent) {}
 	state: AnimationState = AnimationState.CategoryView;
 	toggleState(): void {
 		this.state == AnimationState.CategoryView ? this.state = AnimationState.Selected : this.state  = AnimationState.CategoryView;
-		this.toCategoryView.emit(this);
+		this.rootComponent.stateChange(this);
+	}
+	resetState(): void {
+		this.state = AnimationState.CategoryView;
 	}
 }
