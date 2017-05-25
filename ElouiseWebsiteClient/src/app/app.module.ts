@@ -6,7 +6,6 @@ import { HttpModule } from '@angular/http';
 
 import { AppRoutingModule } from './app-routing.module';
 
-
 @NgModule({
   declarations: [
   ],
