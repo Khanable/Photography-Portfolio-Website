@@ -9,5 +9,5 @@ import { CategoriesService } from './categories.service';
 	]
 })
 export class CategoryComponent {
-	constructor(private CategoriesService service) {}
+	constructor(private service : CategoriesService) {}
 }

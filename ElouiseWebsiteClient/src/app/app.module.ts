@@ -11,6 +11,8 @@ import { CategoryComponent } from './category.component';
 import { CategoriesComponent } from './categories.component';
 import { ImageComponent } from './image.component';
 
+import { CategoriesService } from './categories.service';
+
 @NgModule({
   declarations: [
 		AppComponent,
@@ -25,7 +27,7 @@ import { ImageComponent } from './image.component';
     FormsModule,
     HttpModule,
   ],
-  providers: [],
-  bootstrap: []
+  providers: [CategoriesService],
+  bootstrap: [AppComponent]
 })
 export class AppModule { }

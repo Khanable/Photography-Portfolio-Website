@@ -1,20 +1,20 @@
 import { Injectable } from '@angular/core';
 import { CategoryDisplay, CategoryDetail } from './category';
 
-CategoryDisplay[] mockDataDisplay = [
+const mockDataDisplay : CategoryDisplay[] = [
 	new CategoryDisplay(1, 'test', 'a category'),
-]
+];
 
-CategoryDetail[] mockDataDetail = [
+const mockDataDetail : CategoryDetail[] = [
 	new CategoryDetail(1, ['1', '2']),
-]
+];
 
 @Injectable()
 export class CategoriesService {
 	getCategories(): Promise<CategoryDisplay[]> { 
 		return Promise.resolve(mockDataDisplay); 
 	}
-	getCategory(number id): Promise<CategoryDetail> {
-		return Promise.resolve(mockDataDisplay); 
+	getCategory(id:number): Promise<CategoryDetail> {
+		return Promise.resolve(mockDataDetail[id]); 
 	}
 }

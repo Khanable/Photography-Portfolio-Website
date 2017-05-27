@@ -1,3 +1,3 @@
 export class Image {
-	constructor(private number categoryId, private string image);
+	constructor(private _categoryId : number, private _image : string) {}
 }

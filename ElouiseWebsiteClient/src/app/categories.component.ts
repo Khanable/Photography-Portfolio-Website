@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CategoriesService } from './categories.service';
+import { CategoryDisplay } from './category';
 
 @Component({
 	selector: 'categories-root',
@@ -8,6 +9,11 @@ import { CategoriesService } from './categories.service';
 		'./categories.component.css',
 	],
 })
-export class CategoriesComponent {
-	constructor(private CategoriesService service) {
+export class CategoriesComponent implements OnInit {
+	constructor(private service : CategoriesService) {}
+
+	private categories: CategoryDisplay[];
+	ngOnInit(): void {
+		this.service.getCategories().then( e => this.categories = e );
+	}
 }

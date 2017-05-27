@@ -9,5 +9,5 @@ import { CategoriesService } from './categories.service';
 	]
 })
 export class ImageComponent {
-	constructor(private CategoriesService service) {}
+	constructor(private service : CategoriesService) {}
 }

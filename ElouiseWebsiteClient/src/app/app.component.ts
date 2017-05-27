@@ -1,5 +1,4 @@
 import { Component } from '@angular/core';
-import { CategoriesService } from './categories.service.ts';
 
 @Component({
 	selector: 'app-root',
@@ -7,7 +6,7 @@ import { CategoriesService } from './categories.service.ts';
 	styleUrls: [
 		'./app.component.css',
 	],
-	providers: [ CategoriesService ],
+	providers: [],
 })
 export class AppComponent {
 }
