@@ -58,7 +58,7 @@ export class AnimationTestComponent implements OnInit {
 }
 
 
-class AnimatedCategory {
+export class AnimatedCategory {
 	constructor(private rootComponent: AnimationTestComponent) {}
 	state: AnimationState = AnimationState.CategoryView;
 	toggleState(): void {

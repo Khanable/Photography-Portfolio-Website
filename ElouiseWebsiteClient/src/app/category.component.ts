@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { CategoriesService } from './categories.service';
 
 @Component({
 	selector: 'category-root',
@@ -8,4 +9,5 @@ import { Component } from '@angular/core';
 	]
 })
 export class CategoryComponent {
+	constructor(private CategoriesService service) {}
 }
