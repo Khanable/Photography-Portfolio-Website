@@ -10,6 +10,8 @@ import { AppComponent } from './app.component';
 import { CategoryComponent } from './category.component';
 import { CategoriesComponent } from './categories.component';
 import { ImageComponent } from './image.component';
+import { AboutComponent } from './about.component';
+import { FCLogoComponent } from './fclogo.component';
 
 import { CategoriesService } from './categories.service';
 
@@ -19,6 +21,8 @@ import { CategoriesService } from './categories.service';
 		CategoryComponent,
 		CategoriesComponent,
 		ImageComponent,
+		AboutComponent,
+		FCLogoComponent,
   ],
   imports: [
 		AppRoutingModule,
