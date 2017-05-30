@@ -1,10 +1,23 @@
-import { Component, ElementRef } from '@angular/core';
+import { Component, AfterViewInit, ElementRef } from '@angular/core';
+
 
 @Component({
 	selector: 'fclogo-root',
 	template: `
 		<div id=fclogo></div>
-		<script>
+	`,
+	styles: [
+	],
+})
+export class FCLogoComponent implements AfterViewInit {
+	constructor(private ref: ElementRef) {}
+	ngAfterViewInit(): void {
+		let s = document.createElement("script");
+		s.type = "text/javascript";
+		s.innerHTML = this.script;
+		this.ref.nativeElement.appendChild(s);
+	}
+	script:string = `
 /* 
  * Options
  */
@@ -243,11 +256,5 @@ canvas.setAttribute('height', settings.canvasSize.y);
 root.appendChild(canvas);
 let ctx = canvas.getContext('2d');
 mainloop(performance.now(), new CanvasEnv(ctx, settings));
-	</script>
-	`,
-	styles: [
-	],
-	providers: [],
-})
-export class FCLogoComponent {
+`
 }
