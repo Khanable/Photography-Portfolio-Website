@@ -1,18 +1,20 @@
-import { Component, AfterViewInit, ElementRef, OnDestroy } from '@angular/core';
+import { Component, AfterViewInit, ElementRef, OnDestroy, ViewEncapsulation } from '@angular/core';
 
 //Make a static list for tracking logo instance id for mutliple fclogo components, to start and stop approperiately
-
 @Component({
 	selector: 'fclogo-root',
 	template: `
-		<style>
-		.logo {
-			width: 200;
-			height: 200;
-		}
-		</style>
 		<div id=fclogo></div>
 	`,
+	styles: [
+		`
+	.fclogo {
+		width: 50px;
+		height: 50px;
+	}
+		`
+	],
+	encapsulation: ViewEncapsulation.None,
 })
 export class FCLogoComponent implements AfterViewInit, OnDestroy {
 	constructor(private ref: ElementRef) {}
@@ -20,7 +22,7 @@ export class FCLogoComponent implements AfterViewInit, OnDestroy {
 		let s = document.createElement("script");
 		s.type = "text/javascript";
 		s.innerHTML = `
-			let logo = new fclogo.Logo('fclogo', 'logo')
+			let logo = new fclogo.Logo('fclogo', 'fclogo')
 			logo.start();
 		`;
 		this.ref.nativeElement.appendChild(s);
