@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { DOMSanitizer } from '@angular/platform-browser';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CategoriesService } from './categories.service';
 import { CategoryDisplay } from './category';
 
@@ -11,15 +11,14 @@ import { CategoryDisplay } from './category';
 	],
 })
 export class CategoriesComponent implements OnInit {
-	constructor(private service : CategoriesService, private sanitizer: DOMSanitizer) {}
+	constructor(private service : CategoriesService, private sanitizer: DomSanitizer) {}
 
 	private categories: CategoryDisplay[];
 	ngOnInit(): void {
 		this.service.getCategories().then( e => this.categories = e );
 	}
 	
-	getImage(inImg: string):string {
-		return sanitizer.bypassSecurityTrustResourceURL(
-
+	getImage(inImg: string): SafeResourceUrl {
+		return this.sanitizer.bypassSecurityTrustResourceUrl(inImg);
 	}
 }

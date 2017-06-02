@@ -13,6 +13,7 @@ import { ImageComponent } from './image.component';
 import { AboutComponent } from './about.component';
 import { FCLogoComponent } from './fclogo.component';
 import { MenuBarComponent } from './menubar.component';
+import { BackgroundComponent } from './background.component';
 
 import { CategoriesService } from './categories.service';
 
@@ -25,6 +26,7 @@ import { CategoriesService } from './categories.service';
 		AboutComponent,
 		FCLogoComponent,
 		MenuBarComponent,
+		BackgroundComponent,
   ],
   imports: [
 		AppRoutingModule,

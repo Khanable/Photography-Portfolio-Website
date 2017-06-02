@@ -1,10 +1,12 @@
 .entry {
-	float: left;
+	display: inline-block;
 }
 
 #about {
-
 }
 
-#menubar {
+#design, fclogo-root {
+	display: inline-block;
+	
 }
+

@@ -1,2 +1,16 @@
+<div id=header>
+	<label id=name>
+		Elouise Haupt
+	</label>
+</div>
+<background-root></background-root>
 <router-outlet></router-outlet>
-<menubar-root></menubar-root>
+<br>
+<div id=footer (mouseout)=hideMenu()>
+	<br>
+	<div (mouseover)=showMenu() [@menubarTrigger]=menubarState>
+		<div id=menubar-trigger></div>
+		<menubar-root></menubar-root>
+		<div id=menubar-bottom></div>
+	</div>
+</div>
