@@ -134,13 +134,13 @@ Object.seal(fclogo.Vector2.prototype);
 
 
 Object.defineProperty(fclogo, 'Logo', {enumerable: true, value: 
-	function(rootNodeID, styleClassName, settings) {
+	function(rootNode, styleClassName, settings) {
 		Object.defineProperty(this, '_canvas', {value: document.createElement('canvas') });
 		this._canvas.className = styleClassName;
 		this._canvas.setAttribute('width', this._defaultScale.x);
 		this._canvas.setAttribute('height', this._defaultScale.y);
 		Object.defineProperty(this, '_ctx', {value: this._canvas.getContext('2d')});
-		document.getElementById(rootNodeID).appendChild(this._canvas);
+		rootNode.appendChild(this._canvas);
 
 		Object.defineProperty(this, '_settings', { value: !settings ? fclogo.defaultSettings : Object.freeze(settings) });
 		Object.defineProperty(this, '_keyFrames', { value: new fclogo.KeyFrames() });
@@ -160,10 +160,6 @@ Object.defineProperty(fclogo, 'Logo', {enumerable: true, value:
 
 		setupFrames = (settingsProp, keyFramesProp) => this._settings[settingsProp].forEach( frame => this[keyFramesProp].newFrame(frame.v, frame.t) );
 		setupFrames('keyFrames', '_keyFrames');
-
-		Object.defineProperty(this, '_lTime', { writable: true, value: 0 });
-		Object.defineProperty(this, '_stop', {writable: true, value: false});
-		Object.defineProperty(this, '_requestAnimationFrameCallback', { value: (time) => this.mainloop(time) });
 
 		Object.seal(this);
 	}
@@ -283,7 +279,6 @@ Object.defineProperty(fclogo.Logo.prototype, 'draw', {value:
 
 Object.defineProperty(fclogo.Logo.prototype, 'reset', {value:
 	Object.seal(function() {
-		this._stop = false;
 		this._elementsT = new Array(this._settings.numBlocks).fill(0);
 		this._elementR = 0;
 	})
@@ -301,36 +296,14 @@ Object.defineProperty(fclogo.Logo.prototype, 'updateCanvasSize', {value:
 	}
 });
 
-Object.defineProperty(fclogo.Logo.prototype, 'start', {enumerable: true, value:
-	Object.seal(function() {
-		this.reset();
-		this.mainloop(performance.now());
-	})
-});
-
-Object.defineProperty(fclogo.Logo.prototype, 'mainloop', {enumerable: true, value:
-	Object.seal(function(time) {
-		time/=1000;
-		let dt = time - this._lTime;
-		dt = dt <= 0 ? 0 : dt;
-		this._lTime = time;
-
+Object.defineProperty(fclogo.Logo.prototype, 'render', {enumerable: true, value:
+	Object.seal(function(dt) {
 		this.draw(dt);
-
-		if ( !this._stop ) {
-			requestAnimationFrame(this._requestAnimationFrameCallback);
-		}
 	})
 });
 
-Object.defineProperty(fclogo.Logo.prototype, 'stop', {enumerable: true, value:
-	Object.seal(function() {
-		this._stop = true;
-	})
-});
 
 Object.seal(fclogo.Logo.prototype);
-
 Object.seal(fclogo);
 	</script>
 </head>

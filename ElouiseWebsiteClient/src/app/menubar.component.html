@@ -2,7 +2,7 @@
 	<label id=design>
 		Website Design
 	</label>
-	<fclogo-root></fclogo-root>
+	<fclogo-root (renderAdd)='forwardAdd($event)' (renderRemove)='forwardRemove($event)'></fclogo-root>
 </div>
 <div class=entry>
 	<label id=about (click)='gotoAbout()'>About</label>

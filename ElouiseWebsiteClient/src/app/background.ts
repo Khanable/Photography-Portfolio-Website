@@ -57,15 +57,13 @@ class Color {
 
 
 export class Settings {
-	dropTime:number = 5;
+	dropTime:number = 0;
 }
 
 export class Background {
 	private readonly _canvas;
 	private readonly _ctx;
-	private _run:boolean;
 	private static readonly _defaultSize:Vector2 = new Vector2(1920, 1080);
-	private _ltime:number;
 	private _canvasSize:Vector2;
 	private _scale:Vector2;
 	private _placeT:number;
@@ -76,13 +74,10 @@ export class Background {
 		this._root = root.nativeElement;
 
 		this._canvas = document.createElement('canvas');
-		this._canvas.className=style;
+		this._canvas.className = style;
 		this._ctx = this._canvas.getContext('2d');
 
 		this._root.appendChild(this._canvas);
-
-		this._run = false;
-		this._ltime = 0;
 
 		this._canvasSize = new Vector2(0, 0);
 		this._scale = new Vector2(0, 0);
@@ -99,16 +94,36 @@ export class Background {
 			new Vector2(0, 1),
 			new Vector2(1, 1),
 		];
+
+		this.updateCanvasSize()
+
+		//fill black
+		let data = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
+		for(let x = 0; x < data.width; x++ ) {
+			for(let y = 0; y < data.height; y++ ) {
+				let color =  new Color(new Vector2(x, y), data);
+				color.a = 255;
+			}
+		}
+		this._ctx.putImageData(data, 0, 0);
 	}
 
 	private updateCanvasSize() : void {
 		let style = window.getComputedStyle(this._canvas);
 		this._canvasSize.x = parseInt(style.getPropertyValue('width'));
 		this._canvasSize.y = parseInt(style.getPropertyValue('height'));
-		this._canvas.setAttribute('width', this._canvasSize.x);
-		this._canvas.setAttribute('height', this._canvasSize.y);
 		this._scale.x = this._canvasSize.x/Background._defaultSize.x;
 		this._scale.y = this._canvasSize.y/Background._defaultSize.y;
+		if ( changed ) {
+			let data = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
+			if ( largerNow ) {
+				//fill the difference if larger with black
+			}
+			//we loose the canvas state here if we don't put the image back on
+			this._canvas.setAttribute('width', this._canvasSize.x);
+			this._canvas.setAttribute('height', this._canvasSize.y);
+			this._ctx.putImageData(data, 0, 0);
+		}
 	}
 
 	private place(data:ImageData, dt:number) : void{
@@ -117,6 +132,7 @@ export class Background {
 			let color = new Color(rPos, data);
 			color.g = 255;
 			this._placeT = 0;
+			console.log('hit');
 		}
 		else {
 			this._placeT += dt;
@@ -154,46 +170,14 @@ export class Background {
 	private draw(dt:number) {
 		let data = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
 		this.place(data, dt);
-		this.update(data, dt);
+		//this.update(data, dt);
 		this._ctx.putImageData(data, 0, 0);
 	}
 
-	start(): void {
-		this._run = true;
-		this._ltime = performance.now();
+	render(dt:number) {
 		this.updateCanvasSize();
-		let data = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
-		for(let x = 0; x < data.width; x++ ) {
-			for(let y = 0; y < data.height; y++ ) {
-				let pos = new Vector2(x, y);
-				let index = pos.toIndex(data.width, data.height);
-				data.data[index] = 0;
-				data.data[index+1] = 0;
-				data.data[index+2] = 0;
-				data.data[index+3] = 0;
-			}
-		}
-		this.mainloop(this._ltime);
+
+		//this.draw(dt);
 	}
 
-	private mainloop(time:number) {
-		let dt = (time-this._ltime)/1000;
-		dt = dt <= 0 ? 0 : dt;
-		this._ltime = time;
-
-		this._ctx.setTransform(1, 0, 0, 1, 0, 0);
-		this.updateCanvasSize();
-		//this._ctx.clearRect(0, 0, this._canvasSize.x, this._canvasSize.y);
-
-		this.draw(dt);
-
-		console.log(dt);
-		if ( this._run ) {
-			window.requestAnimationFrame(e => (this.mainloop(e)));
-		}
-	}
-
-	stop(): void {
-		this._run = false;
-	}
 }
