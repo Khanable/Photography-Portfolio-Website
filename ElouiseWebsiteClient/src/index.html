@@ -130,6 +130,12 @@ Object.defineProperty(fclogo.Vector2.prototype, 'add', {enumerable: true, value:
 		return new fclogo.Vector2(this.x+v.x, this.y+v.y);
 	})
 });
+
+Object.defineProperty(fclogo.Vector2.prototype, 'equals', {enumerable: true, value:
+	Object.seal(function(v) {
+		return this.x == v.x && this.y == v.y;
+	})
+});
 Object.seal(fclogo.Vector2.prototype);
 
 
@@ -148,9 +154,11 @@ Object.defineProperty(fclogo, 'Logo', {enumerable: true, value:
 		Object.defineProperty(this, '_textT', {writable: true, value: 0});
 		Object.defineProperty(this, '_elementR', {writable: true,  value: 0});
 		Object.defineProperty(this, '_numLoops', { value: Math.floor( (this._settings.rotateSpeed + this._settings.borderSegmentTMod)*10 )/2});
+		Object.defineProperty(this, '_canvasSize', { writable: true, value: new fclogo.Vector2(this._defaultScale.x, this._defaultScale.y)});
+		Object.defineProperty(this, '_lastCanvasSize', { writable: true, value: new fclogo.Vector2(this._defaultScale.x, this._defaultScale.y)});
+		Object.defineProperty(this, '_scale', { writable: true, value: new fclogo.Vector2(1, 1)});
+
 		Object.defineProperty(this, '_angleStep', { value: (Math.PI*2)/this._settings.numBlocks});
-		Object.defineProperty(this, '_scale', { value: Object.seal({ x: 1, y: 1})});
-		Object.defineProperty(this, '_canvasSize', { value: Object.seal({ x: this._defaultScale.x, y: this._defaultScale.y})});
 
 		let p1 = new fclogo.Vector2(0, 1).scale(this._settings.borderRadius);
 		let p2 = p1.rotate(this._angleStep);
@@ -287,12 +295,13 @@ Object.defineProperty(fclogo.Logo.prototype, 'reset', {value:
 Object.defineProperty(fclogo.Logo.prototype, 'updateCanvasSize', {value:
 	function() {
 		let style = window.getComputedStyle(this._canvas);
-		this._canvasSize.x = parseInt(style.getPropertyValue('width'));
-		this._canvasSize.y = parseInt(style.getPropertyValue('height'));
-		this._canvas.setAttribute('width', this._canvasSize.x);
-		this._canvas.setAttribute('height', this._canvasSize.y);
-		this._scale.x = this._canvasSize.x/this._defaultScale.x;
-		this._scale.y = this._canvasSize.y/this._defaultScale.y;
+		this._lastCanvasSize = this._canvasSize;
+		this._canvasSize = new fclogo.Vector2(parseInt(style.getPropertyValue('width')), parseInt(style.getPropertyValue('height')));
+		if ( !this._lastCanvasSize.equals(this._canvasSize) ) {
+			this._canvas.setAttribute('width', this._canvasSize.x);
+			this._canvas.setAttribute('height', this._canvasSize.y);
+			this._scale = new fclogo.Vector2(this._canvasSize.x/this._defaultScale.x, this._canvasSize.y/this._defaultScale.y);
+		}
 	}
 });
 

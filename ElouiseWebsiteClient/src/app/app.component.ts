@@ -43,12 +43,10 @@ export class AppComponent {
 	}
 
 	addToRenderList(renderComponent: IRenderComponent): void {
-		console.log('testadd');
 		this._renderList.push(renderComponent);
 	}
 
 	removeFromRenderList(renderComponent: IRenderComponent): void {
-		console.log('testRemove');
 		this._renderList.splice(this._renderList.indexOf(renderComponent), 1);
 	}
 
