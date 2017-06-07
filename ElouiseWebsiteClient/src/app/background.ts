@@ -1,4 +1,12 @@
 //- remove any unused variables
+//
+//- prewarm
+//- color variation
+//- cleanup code
+//- settings
+//- profile
+//- prng integration
+//- image fallback, (unity clouds shader, overlaping images rotating)
 import { ElementRef } from '@angular/core';
 
 class Utility {
@@ -9,6 +17,8 @@ class Utility {
 
 
 class Vector2 {
+	static readonly zero: Vector2 = new Vector2(0, 0);
+
 	constructor(public x:number, public y:number) {} 
 
 	toIndex(sizeX:number, sizeY:number) : number {
@@ -32,6 +42,10 @@ class Vector2 {
 	}
 	copy():Vector2 {
 		return new Vector2(this.x, this.y);
+	}
+
+	static indexToVector(i:number, size:Vector2): Vector2 {
+		return new Vector2(Math.floor(i/size.y), i%size.x);
 	}
 
 }
@@ -90,7 +104,8 @@ class LinkedColor implements IColor {
 
 export class Settings {
 	dropTime:number = 0;
-	baseColor: Color = new Color(0, 125, 0);
+	smokeColor: Color = new Color(0, 125, 0);
+	baseColor: Color = new Color(0, 0, 0);
 }
 
 export class Background {
@@ -101,7 +116,13 @@ export class Background {
 	private _lastCanvasSize: Vector2;
 	private _scale:Vector2;
 	private _placeT:number;
-	private static readonly _selectionMask :Vector2[] = [
+	private static readonly _selectionMask3x3Cross :Vector2[] = [
+			new Vector2(0, -1),
+			new Vector2(-1, 0),
+			new Vector2(1, 0),
+			new Vector2(0, 1),
+		];
+	private static readonly _selectionMask3x3 :Vector2[] = [
 			new Vector2(-1, -1),
 			new Vector2(0, -1),
 			new Vector2(1, -1),
@@ -113,7 +134,10 @@ export class Background {
 		];
 	private readonly _root;
 
+	private _curUpdatePixelIndex:number;
+
 	private _drawCount:number;
+	private readonly _circleMask:Vector2[];
 
 	constructor(root: ElementRef, style:string, private _settings: Settings) {
 		this._root = root.nativeElement;
@@ -130,20 +154,36 @@ export class Background {
 
 		this._placeT = 0;
 		this._drawCount = 0;
+		this._curUpdatePixelIndex = 0;
 
 		this.updateCanvasSize()
 
 		this.fillCanvasBaseColor();
 
+		//create circle mask
+		let radius = 8;
+		this._circleMask = [];
+		for(let x = -radius; x < radius; x++) {
+			for( let y = -radius; y < radius; y++) {
+				let pos = new Vector2(x, y);
+				if ( pos.magnitude() <= radius ) {
+					this._circleMask.push(pos);
+				}
+			}
+		}
+
+		//pre-ignite
 		//let curData = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
-		//for( let i = 0; i < 2; i++ ) {
-		//	curData = this.operate(curData, Background._selectionMask, (sColor, dColors) => {
-		//		let dst = dColors[Utility.randomRange(0, dColors.length)];
-		//		sColor.g -= 2;
-		//		dst.g +=2;
-		//	});
+		//let randStart = [];
+		//for( let i = 0; i < 1000; i++ ) {
+		//	randStart.push(Vector2.randomRange(Vector2.zero, this._canvasSize));
 		//}
-		//this._ctx.putImageData(curData , 0, 0 );
+		//this._ctx.fillStyle = this._settings.smokeColor.toStyle();
+		//randStart.forEach( v => this._ctx.fillRect(v.x, v.y, 16, 16));
+		//curData = this.operate(curData, null, randStart, (sColor, dColors) => {
+		//	sColor.g = this._settings.smokeColor.g;
+		//});
+		//this._ctx.putImageData(curData, 0, 0 );
 	}
 
 	private fillCanvasBaseColor():void {
@@ -177,7 +217,10 @@ export class Background {
 				let color = new LinkedColor(pos, src);
 				//get surrounding cells
 				let sColor = new LinkedColor(pos, dst);
-				let dColors = selectionMask.map( v => v.add(pos)).map( v => new LinkedColor(v, dst));
+				let dColors;
+				if ( selectionMask ) {
+					dColors = selectionMask.map( v => v.add(pos)).map( v => new LinkedColor(v, dst));
+				}
 				operation(sColor, dColors);
 		}
 		return dst;
@@ -193,23 +236,30 @@ export class Background {
 	private draw(dt:number) {
 		let curData = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
 
-		//pixel movement with energy use
-		let randSrc = [];
-		for(let i = 0; i < 1000; i++){
-			randSrc.push(Vector2.randomRange(new Vector2(0, 0), this._canvasSize));
+		//Pixels suppply
+		let randStart = [];
+		for( let i = 0; i < 16; i++ ) {
+			randStart.push(Vector2.randomRange(Vector2.zero, this._canvasSize));
 		}
-		curData = this.operate(curData, Background._selectionMask, randSrc, (sColor, dColors) => {
-			dColors = dColors.filter( c => !this.outOfBounds(c.pos));
-			let dst = dColors[Utility.randomRange(0, dColors.length)]
-			if ( sColor.g > 4/16 ) {
-				sColor.g -= 4/16*10;
-				dst.g += 2/16*10;
+		curData = this.operate(curData, null, randStart, (sColor, dColors) => {
+			sColor.g += this._settings.smokeColor.g;
+		});
+
+		//Smoke 
+		let randPos = Vector2.randomRange(Vector2.zero, this._canvasSize);
+		randStart = this._circleMask.map( v => v.add(randPos) );
+		curData = this.operate(curData, Background._selectionMask3x3Cross, randStart, (sColor, dColors) => {
+			let dCs = dColors.map( c => !this.outOfBounds(c.pos) ? c : this._settings.baseColor );
+			let cal = (f, maxSmokeValue) => {
+				return f * (dCs.reduce( (acc, cv) => acc+cv.g, 0 )-dCs.length*maxSmokeValue);
 			}
+			sColor.g += cal(0.1, 125);
 		});
 
 
 		//blur kernel
-		curData = this.operate(curData, Background._selectionMask, randSrc, (sColor, dColors) => {
+		//creates a sharp/soft paralax over time, defantly working!
+		curData = this.operate(curData, Background._selectionMask3x3, randStart, (sColor, dColors) => {
 			let kern = [
 				1/16, 2/16, 1/16,
 				2/16, 4/16, 2/16,

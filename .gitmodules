@@ -1,0 +1,3 @@
+[submodule "ElouiseWebsiteClient/src/assets/javascript-pcg-random"]
+	path = ElouiseWebsiteClient/src/assets/javascript-pcg-random
+	url = https://Khanable6@bitbucket.org/Khanable6/javascript-pcg-random.git
