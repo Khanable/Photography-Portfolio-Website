@@ -1,20 +1,10 @@
-//- remove any unused variables
-//
-//- prewarm
-//- color variation
-//- cleanup code
-//- settings
-//- profile
-//- prng integration
+//- loading bar for prewarm if needed, woould need to handle as part of mainloop or worker thread. Could use worker thread as image data
+//- color variation for smoke pixels
+//- profile performance
 //- image fallback, (unity clouds shader, overlaping images rotating)
 import { ElementRef } from '@angular/core';
 
-class Utility {
-	static randomRange(s:number, e:number) {
-		return Math.floor(Math.random() * (e-s)) + s;
-	}
-}
-
+declare const Random;
 
 class Vector2 {
 	static readonly zero: Vector2 = new Vector2(0, 0);
@@ -25,8 +15,8 @@ class Vector2 {
 		return this.y*sizeY+this.x%sizeX;
 	}
 
-	static randomRange(s:Vector2, e:Vector2) : Vector2 {
-		return new Vector2(Utility.randomRange(s.x, e.x), Utility.randomRange(s.y, e.y));
+	static randomRange(s:Vector2, e:Vector2, rFactory) : Vector2 {
+		return new Vector2(rFactory.nextIntRange(s.x, e.x), rFactory.nextIntRange(s.y, e.y));
 	}
 
 	add(v:Vector2): Vector2 { 
@@ -54,6 +44,9 @@ interface IColor {
 	r:number;
 	g:number;
 	b:number;
+
+	add(c:IColor): IColor;
+	mag():number;
 }
 
 class Color implements IColor {
@@ -62,6 +55,45 @@ class Color implements IColor {
 	toStyle():string {
 		return 'rgb('+this.r+','+this.g+','+this.b+')';
 	}
+
+	add(c:IColor):IColor {
+		return new Color(this.r+c.r, this.g+c.g,this.b+c.b);
+	}
+
+	static random(s:IColor, e:IColor, rFactory): IColor {
+		let sMag = s.mag();
+		let eMag = e.mag();
+		let rtn = Color.from(s);
+
+		let diff = eMag-sMag;
+		let newMag = rFactory.nextIntRange(1, diff);
+
+		rtn.scale(newMag);
+
+		return rtn;
+	}
+
+	mag():number {
+		return Math.sqrt( Math.pow(this.r, 2) + Math.pow(this.g, 2) + Math.pow(this.b, 2) );
+	}
+	
+	private scale(s:number):void {
+		this.r*=s;
+		this.g*=s;
+		this.b*=s;
+	}
+
+	private normalize():void {
+		let mag = this.mag();
+		this.r/=mag;
+		this.g/=mag;
+		this.b/=mag;
+	}
+
+	static from(c:IColor):Color {
+		return new Color(c.r, c.g, c.b);
+	}
+	
 }
 
 class LinkedColor implements IColor {
@@ -70,6 +102,10 @@ class LinkedColor implements IColor {
 
 	constructor(private _pos:Vector2, private _data:ImageData) {
 		this._index = this._pos.toIndex(this._data.width, this._data.height)*LinkedColor._numColors;
+	}
+
+	mag():number {
+		return Math.sqrt( Math.pow(this.r, 2) + Math.pow(this.g, 2) + Math.pow(this.b, 2) );
 	}
 
 	set r(v:number) {
@@ -99,23 +135,33 @@ class LinkedColor implements IColor {
 	get pos():Vector2 {
 		return this._pos.copy();
 	}
+
+	add(c:IColor):IColor {
+		this.r += c.r;
+		this.g += c.g;
+		this.b += c.b;
+		return this;
+	}
 }
 
 
 export class Settings {
 	dropTime:number = 0;
-	smokeColor: Color = new Color(0, 125, 0);
 	baseColor: Color = new Color(0, 0, 0);
+	circleMaskRadius:number = 8;
+	prewarmCycles:number = 1;
+	newPixelsPerFrame:number = 16;
+	smokeFactor:number=0.1;
+	smokeColorRandStart:Color = new Color(0, 100, 100);
+	smokeColorRandEnd:Color = new Color(0, 180, 180);
 }
 
 export class Background {
 	private readonly _canvas;
 	private readonly _ctx;
-	//private static readonly _defaultScale:Vector2 = new Vector2(1920, 1080);
 	private _canvasSize:Vector2;
 	private _lastCanvasSize: Vector2;
 	private _scale:Vector2;
-	private _placeT:number;
 	private static readonly _selectionMask3x3Cross :Vector2[] = [
 			new Vector2(0, -1),
 			new Vector2(-1, 0),
@@ -133,57 +179,52 @@ export class Background {
 			new Vector2(1, 1),
 		];
 	private readonly _root;
-
-	private _curUpdatePixelIndex:number;
-
-	private _drawCount:number;
 	private readonly _circleMask:Vector2[];
+	private static readonly _blurKernel = [
+		1/16, 2/16, 1/16,
+		2/16, 4/16, 2/16,
+		1/16, 2/16, 1/16,
+	];
+	private readonly _rFactory;
 
 	constructor(root: ElementRef, style:string, private _settings: Settings) {
 		this._root = root.nativeElement;
-
 		this._canvas = document.createElement('canvas');
 		this._canvas.className = style;
 		this._ctx = this._canvas.getContext('2d');
-
 		this._root.appendChild(this._canvas);
 
 		this._canvasSize = new Vector2(0, 0);
 		this._lastCanvasSize = new Vector2(0, 0);
 		this._scale = new Vector2(0, 0);
-
-		this._placeT = 0;
-		this._drawCount = 0;
-		this._curUpdatePixelIndex = 0;
+		this._rFactory = new Random.RandomFactory32(performance.now(), 1);
 
 		this.updateCanvasSize()
 
 		this.fillCanvasBaseColor();
 
-		//create circle mask
-		let radius = 8;
-		this._circleMask = [];
+		this._circleMask = this.createCircleMask(this._settings.circleMaskRadius);
+
+		this.prewarm();
+	}
+
+	private createCircleMask(radius):Vector2[] {
+		let mask:Vector2[] = [];
 		for(let x = -radius; x < radius; x++) {
 			for( let y = -radius; y < radius; y++) {
 				let pos = new Vector2(x, y);
 				if ( pos.magnitude() <= radius ) {
-					this._circleMask.push(pos);
+					mask.push(pos);
 				}
 			}
 		}
+		return mask;
+	}
 
-		//pre-ignite
-		//let curData = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
-		//let randStart = [];
-		//for( let i = 0; i < 1000; i++ ) {
-		//	randStart.push(Vector2.randomRange(Vector2.zero, this._canvasSize));
-		//}
-		//this._ctx.fillStyle = this._settings.smokeColor.toStyle();
-		//randStart.forEach( v => this._ctx.fillRect(v.x, v.y, 16, 16));
-		//curData = this.operate(curData, null, randStart, (sColor, dColors) => {
-		//	sColor.g = this._settings.smokeColor.g;
-		//});
-		//this._ctx.putImageData(curData, 0, 0 );
+	prewarm():void {
+		for(let i = 0; i < this._settings.prewarmCycles; i++) {
+			this.draw();
+		}
 	}
 
 	private fillCanvasBaseColor():void {
@@ -233,39 +274,34 @@ export class Background {
 		return false;
 	}
 
-	private draw(dt:number) {
-		let curData = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
-
-		//Pixels suppply
-		let randStart = [];
-		for( let i = 0; i < 16; i++ ) {
-			randStart.push(Vector2.randomRange(Vector2.zero, this._canvasSize));
-		}
-		curData = this.operate(curData, null, randStart, (sColor, dColors) => {
-			sColor.g += this._settings.smokeColor.g;
+	private addPixels(dataIn, toHere) {
+		let dataOut = this.operate(dataIn, null, toHere, (sColor, dColors) => {
+			let randColor = Color.random(this._settings.smokeColorRandStart, this._settings.smokeColorRandEnd, this._rFactory);
+			sColor.add(randColor);
 		});
+		return dataOut;
+	}
 
-		//Smoke 
-		let randPos = Vector2.randomRange(Vector2.zero, this._canvasSize);
-		randStart = this._circleMask.map( v => v.add(randPos) );
-		curData = this.operate(curData, Background._selectionMask3x3Cross, randStart, (sColor, dColors) => {
+	private applySmoke(dataIn, toPixels) {
+		let dataOut = this.operate(dataIn, Background._selectionMask3x3Cross, toPixels, (sColor, dColors) => {
 			let dCs = dColors.map( c => !this.outOfBounds(c.pos) ? c : this._settings.baseColor );
-			let cal = (f, maxSmokeValue) => {
-				return f * (dCs.reduce( (acc, cv) => acc+cv.g, 0 )-dCs.length*maxSmokeValue);
+			let cal = (maxSmokeValue) => {
+				return this._settings.smokeFactor * (dCs.reduce( (acc, cv) => acc+cv.g, 0 )-dCs.length*maxSmokeValue);
 			}
-			sColor.g += cal(0.1, 125);
+			//!operate on magntidue of color!
+			let r = cal(this._settings.smokeColorRandEnd.r);
+			let g = cal(this._settings.smokeColorRandEnd.g);
+			let b = cal(this._settings.smokeColorRandEnd.b);
+			sColor.add(new Color(r, g, b));
 		});
+		return dataOut;
+	}
 
-
-		//blur kernel
+	private applyBlur(dataIn, toPixels) {
 		//creates a sharp/soft paralax over time, defantly working!
-		curData = this.operate(curData, Background._selectionMask3x3, randStart, (sColor, dColors) => {
-			let kern = [
-				1/16, 2/16, 1/16,
-				2/16, 4/16, 2/16,
-				1/16, 2/16, 1/16,
-			]
+		let dataOut = this.operate(dataIn, Background._selectionMask3x3, toPixels, (sColor, dColors) => {
 			let cal = (property) => {
+				let kern = Background._blurKernel;
 				let sC = sColor[property]
 				let mappedColors:IColor[] = dColors.map( c => this.outOfBounds(c.pos) ? this._settings.baseColor : c );
 				let dCs = mappedColors.map( c => c[property] );
@@ -276,13 +312,31 @@ export class Background {
 			sColor.g = cal('g');
 			sColor.b = cal('b');
 		});
+		return dataOut;
+	}
+
+	private draw() {
+		let curData = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
+
+		let newPixels = [];
+		for( let i = 0; i < this._settings.newPixelsPerFrame; i++ ) {
+			newPixels.push(Vector2.randomRange(Vector2.zero, this._canvasSize, this._rFactory));
+		}
+		curData = this.addPixels(curData, newPixels);
+
+		let smokePixels = [];
+		let smokePixelsCentrePoint = Vector2.randomRange(Vector2.zero, this._canvasSize, this._rFactory);
+		smokePixels = this._circleMask.map( v => v.add(smokePixelsCentrePoint) );
+		curData = this.applySmoke(curData, smokePixels);
+
+		curData = this.applyBlur(curData, smokePixels);
 
 		this._ctx.putImageData(curData, 0, 0 );
 	}
 
 	render(dt:number) {
 		this.updateCanvasSize();
-		this.draw(dt);
+		this.draw();
 	}
 
 }

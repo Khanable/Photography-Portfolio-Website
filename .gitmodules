@@ -1,3 +1,6 @@
 [submodule "ElouiseWebsiteClient/src/assets/javascript-pcg-random"]
 	path = ElouiseWebsiteClient/src/assets/javascript-pcg-random
 	url = https://Khanable6@bitbucket.org/Khanable6/javascript-pcg-random.git
+[submodule "ElouiseWebsiteClient/src/assets/freelance-computing-logo"]
+	path = ElouiseWebsiteClient/src/assets/freelance-computing-logo
+	url = https://Khanable6@bitbucket.org/Khanable6/freelance-computing-logo.git
