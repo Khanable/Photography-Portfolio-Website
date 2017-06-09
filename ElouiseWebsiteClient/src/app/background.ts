@@ -1,3 +1,5 @@
+//changes
+//http://lodev.org/cgtutor/randomnoise.html
 //- loading bar for prewarm if needed, woould need to handle as part of mainloop or worker thread. Could use worker thread as image data
 //- profile performance
 //- image fallback, (unity clouds shader, overlaping images rotating)
@@ -10,8 +12,8 @@ class Vector2 {
 
 	constructor(public x:number, public y:number) {} 
 
-	toIndex(sizeX:number, sizeY:number) : number {
-		return this.x*sizeY+this.y%sizeX;
+	toIndex(size:Vector2) : number {
+		return this.x*size.y+this.y%size.x;
 	}
 
 	static randomRange(s:Vector2, e:Vector2, rFactory) : Vector2 {
@@ -41,6 +43,18 @@ class Vector2 {
 		return new Vector2(this.x*s, this.y*s);
 	}
 
+	div(s: number): Vector2 {
+		return new Vector2(this.x/s, this.y/s);
+	}
+
+	trunc():Vector2 {
+		return new Vector2(Math.trunc(this.x), Math.trunc(this.y));
+	}
+
+	ceil():Vector2 {
+		return new Vector2(Math.ceil(this.x), Math.ceil(this.y));
+	}
+
 }
 
 interface IColor {
@@ -54,6 +68,8 @@ interface IColor {
 
 class Color implements IColor {
 	constructor(public r:number, public g:number, public b:number) {};
+
+	static zero: Color = new Color(0, 0, 0);
 
 	toStyle():string {
 		return 'rgb('+this.r+','+this.g+','+this.b+')';
@@ -104,7 +120,7 @@ class LinkedColor implements IColor {
 	private static readonly _numColors:number = 4;
 
 	constructor(private _pos:Vector2, private _data:ImageData) {
-		this._index = this._pos.toIndex(this._data.width, this._data.height)*LinkedColor._numColors;
+		this._index = this._pos.toIndex(new Vector2(this._data.width, this._data.height))*LinkedColor._numColors;
 	}
 
 	mag():number {
@@ -145,6 +161,13 @@ class LinkedColor implements IColor {
 		this.b += c.b;
 		return this;
 	}
+
+	set(c:IColor):IColor{
+		this.r = c.r;
+		this.g = c.g;
+		this.b = c.b;
+		return this;
+	}
 }
 
 
@@ -181,6 +204,12 @@ export class Background {
 			new Vector2(0, 1),
 			new Vector2(1, 1),
 		];
+	private static readonly _mask2x2:Vector2[] = [
+			new Vector2(0, 0),
+			new Vector2(1, 0),
+			new Vector2(0, 1),
+			new Vector2(1, 1),
+		];
 	private readonly _root;
 	private readonly _circleMask:Vector2[];
 	private static readonly _blurKernel = [
@@ -190,9 +219,11 @@ export class Background {
 	];
 	private readonly _rFactory;
 
-	private _pIndex:number;
+	private readonly _noiseImages;
 
 	constructor(root: ElementRef, style:string, private _settings: Settings) {
+		let start = performance.now();
+
 		this._root = root.nativeElement;
 		this._canvas = document.createElement('canvas');
 		this._canvas.className = style;
@@ -203,34 +234,69 @@ export class Background {
 		this._lastCanvasSize = new Vector2(0, 0);
 		this._rFactory = new Random.RandomFactory32(performance.now(), 1);
 
-		this._pIndex = 0;
-
 		this.updateCanvasSize()
 
-		this.fillCanvasBaseColor();
+		this._noiseImages = [];
+		this._noiseImages.push(this.createNoise());
+		//this._noiseImages.push(this.createNoise());
 
-		this._circleMask = this.createCircleMask(this._settings.circleMaskRadius);
+		console.log('start time: '+(performance.now()-start).toPrecision(3)+'ms');
+		console.log(this._canvasSize);
 
-		this.prewarm();
+		this.draw();
 	}
 
-	private createCircleMask(radius):Vector2[] {
-		let mask:Vector2[] = [];
-		for(let x = -radius; x < radius; x++) {
-			for( let y = -radius; y < radius; y++) {
-				let pos = new Vector2(x, y);
-				if ( pos.magnitude() <= radius ) {
-					mask.push(pos);
-				}
+	private smoothNoise(pos:Vector2, data:any):number {
+		let fract = new Vector2(pos.x - Math.trunc(pos.x), pos.y - Math.trunc(pos.y));
+
+		let range = Background._mask2x2.map( v => v.add(pos) );
+		//Wrap around bounds and convert to LinkedColor
+		let lRange = range.map( c => this.outOfBounds(c) ? new LinkedColor( new Vector2((c.x+this._canvasSize.x) % this._canvasSize.x, (c.y+this._canvasSize.y) % this._canvasSize.y), data)  : new LinkedColor( c, data ) );
+
+		let r = 0
+		r += fract.x * fract.y * (lRange[0].r/256);
+		r += (1-fract.x) * fract.y * (lRange[1].r/256);
+		r += fract.x * (1-fract.y) * (lRange[2].r/256);
+		r += (1-fract.x) * (1-fract.y) * (lRange[3].r/256);
+		return r;
+	}
+
+	private turbulence(pos:Vector2, data:any):number {
+		let startSize = 32;
+		let size = startSize;
+		let v = 0
+		while( size >= 1 ) {
+			//v += this.smoothNoise(pos.div(size), data) * size;
+			v += new LinkedColor(pos.div(size).trunc(), data).r/256 * size;
+			size/= 2;
+		}
+
+		return 128 * v / startSize;
+	}
+
+	private createNoise() {
+		let noise = this._ctx.createImageData(this._canvasSize.x, this._canvasSize.y);
+
+		//Random noise initalize
+		for( let x = 0; x < noise.width; x++ ) {
+			for( let y = 0; y < noise.height; y++ ) {
+				let linkedColor = new LinkedColor(new Vector2(x, y), noise);
+				linkedColor.r = Math.random()*256;
 			}
 		}
-		return mask;
-	}
 
-	prewarm():void {
-		for(let i = 0; i < this._settings.prewarmCycles; i++) {
-			this.draw();
+		let adjust = new ImageData(noise.data.slice(), noise.width, noise.height);
+		//smoothing and turbulance
+		for( let x = 0; x < adjust.width; x++ ) {
+			for( let y = 0; y < adjust.height; y++ ) {
+				let d = new LinkedColor(new Vector2(x, y), adjust);
+				//d.r = new LinkedColor(d.pos.div(8).trunc(), noise).r;
+				//d.r = this.smoothNoise(d.pos.div(8).trunc(), noise)*256;
+				d.r = this.turbulence(d.pos.div(8).trunc(), noise);
+			}
 		}
+
+		return adjust;
 	}
 
 	private fillCanvasBaseColor():void {
@@ -242,7 +308,10 @@ export class Background {
 		let style = window.getComputedStyle(this._canvas);
 		this._lastCanvasSize = this._canvasSize;
 		this._canvasSize = new Vector2(parseInt(style.getPropertyValue('width')), parseInt(style.getPropertyValue('height')));
+		let max = Math.max(this._canvasSize.x, this._canvasSize.y);
+		this._canvasSize = new Vector2(max, max);
 		this._canvasSize = this._canvasSize.scale(this._settings.scaleFactor);
+		this._canvasSize = this._canvasSize.ceil();
 		if ( !this._canvasSize.equals(this._lastCanvasSize) ) {
 			let data = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
 			//we loose the canvas state here if we don't put the image back on after changing canvas size attributes
@@ -258,21 +327,6 @@ export class Background {
 	}
 
 
-	private operate(src: ImageData, selectionMask:Vector2[], srcVectors:Vector2[], operation: (srcColor:LinkedColor, dstColors:LinkedColor[]) => void) : void {
-		let dst:any = new ImageData(src.data.slice(), src.width, src.height);
-		for(let pos of srcVectors) { 
-				let color = new LinkedColor(pos, src);
-				//get surrounding cells
-				let sColor = new LinkedColor(pos, dst);
-				let dColors;
-				if ( selectionMask ) {
-					dColors = selectionMask.map( v => v.add(pos)).map( v => new LinkedColor(v, dst));
-				}
-				operation(sColor, dColors);
-		}
-		return dst;
-	}
-
 	private outOfBounds(pos: Vector2): boolean {
 		if ( pos.x < 0 || pos.y < 0 || pos.x >= this._canvasSize.x || pos.y >= this._canvasSize.y ) {
 			return true;
@@ -280,75 +334,41 @@ export class Background {
 		return false;
 	}
 
-	private addPixels(dataIn, toHere) {
-		let dataOut = this.operate(dataIn, null, toHere, (sColor, dColors) => {
-			let randColor = Color.random(this._settings.smokeColorRandStart, this._settings.smokeColorRandEnd, this._rFactory);
-			sColor.add(randColor);
-		});
-		return dataOut;
-	}
-
-	private applySmoke(dataIn, toPixels) {
-		let dataOut = this.operate(dataIn, Background._selectionMask3x3Cross, toPixels, (sColor, dColors) => {
-			let dCs = dColors.map( c => !this.outOfBounds(c.pos) ? c : this._settings.baseColor );
-			let cal = (maxSmokeValue, prop) => {
-				return this._settings.smokeFactor * (dCs.reduce( (acc, cv) => acc+cv[prop], 0 )-dCs.length*maxSmokeValue);
-			}
-
-			let r = cal(this._settings.smokeColorRandEnd.r, 'r');
-			let g = cal(this._settings.smokeColorRandEnd.g, 'g');
-			let b = cal(this._settings.smokeColorRandEnd.b, 'b');
-			sColor.add(new Color(r, g, b));
-		});
-		return dataOut;
-	}
-
-	private applyBlur(dataIn, toPixels) {
-		//creates a sharp/soft paralax over time, defantly working!
-		let dataOut = this.operate(dataIn, Background._selectionMask3x3, toPixels, (sColor, dColors) => {
-			let cal = (property) => {
-				let kern = Background._blurKernel;
-				let sC = sColor[property]
-				let mappedColors:IColor[] = dColors.map( c => this.outOfBounds(c.pos) ? this._settings.baseColor : c );
-				let dCs = mappedColors.map( c => c[property] );
-				return (kern[8]*dCs[0]) + (kern[7]*dCs[1]) + (kern[6]*dCs[2]) + (kern[5]*dCs[3]) + (kern[4]*sC) + (kern[3]*dCs[4]) + (kern[2]*dCs[5]) + (kern[1]*dCs[6]) + (kern[0]*dCs[7]);
-			}
-
-			sColor.r = cal('r');
-			sColor.g = cal('g');
-			sColor.b = cal('b');
-		});
-		return dataOut;
-	}
-
 	private draw() {
 		let curData = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
 
-		let newPixels = [];
-		for( let i = 0; i < this._settings.newPixelsPerFrame; i++ ) {
-			newPixels.push(Vector2.randomRange(Vector2.zero, this._canvasSize, this._rFactory));
+		for(let x = 0; x < this._canvasSize.x; x++ ) {
+			for( let y = 0; y < this._canvasSize.y; y++ ) {
+				let pos = new Vector2(x, y);
+				let s = new LinkedColor(pos, this._noiseImages[0]);
+				let d = new LinkedColor(pos, curData);
+				d.r = s.r;
+				d.a = 255;
+			}
 		}
-		curData = this.addPixels(curData, newPixels);
-		//curData = this.applyBlur(curData, newPixels);
-
-		//		let smokePixels = [];
-		//		let smokePixelsCentrePoint = Vector2.randomRange(Vector2.zero, this._canvasSize, this._rFactory);
-		//		smokePixels = this._circleMask.map( v => v.add(smokePixelsCentrePoint) );
-		//		curData = this.applySmoke(curData, smokePixels);
-
-		let smokePixels = [];
-		for(let i = this._pIndex; i < this._pIndex+160; i++) {
-			smokePixels.push(Vector2.indexToVector(i, this._canvasSize));
-		}
-		this._pIndex+=160;
-		curData = this.applySmoke(curData, smokePixels);
 
 		this._ctx.putImageData(curData, 0, 0);
 	}
 
+
+	private drawfr(dt:number) {
+		this._ctx.save();
+		this._ctx.fillStyle = 'white';
+		this._ctx.textAlign = 'left';
+		this._ctx.baseline = 'middle';
+		this._ctx.translate(this._canvasSize.x-75, 35);
+		this._ctx.scale(2, 2);
+		this._ctx.fillText(dt.toPrecision(3), 0, 0);
+		this._ctx.restore();
+	}
+
 	render(dt:number) {
+		this._ctx.setTransform(1, 0, 0, 1, 0, 0);
 		this.updateCanvasSize();
-		this.draw();
+		//this._ctx.clearRect(0, 0, this._canvasSize.x, this._canvasSize.y);
+
+		//this.draw();
+		//this.drawfr(dt);
 	}
 
 }
