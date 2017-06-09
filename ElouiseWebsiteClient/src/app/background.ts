@@ -1,5 +1,4 @@
 //- loading bar for prewarm if needed, woould need to handle as part of mainloop or worker thread. Could use worker thread as image data
-//- color variation for smoke pixels
 //- profile performance
 //- image fallback, (unity clouds shader, overlaping images rotating)
 import { ElementRef } from '@angular/core';
@@ -12,7 +11,7 @@ class Vector2 {
 	constructor(public x:number, public y:number) {} 
 
 	toIndex(sizeX:number, sizeY:number) : number {
-		return this.y*sizeY+this.x%sizeX;
+		return this.x*sizeY+this.y%sizeX;
 	}
 
 	static randomRange(s:Vector2, e:Vector2, rFactory) : Vector2 {
@@ -36,6 +35,10 @@ class Vector2 {
 
 	static indexToVector(i:number, size:Vector2): Vector2 {
 		return new Vector2(Math.floor(i/size.y), i%size.x);
+	}
+
+	scale(s: number): Vector2 {
+		return new Vector2(this.x*s, this.y*s);
 	}
 
 }
@@ -148,12 +151,13 @@ class LinkedColor implements IColor {
 export class Settings {
 	dropTime:number = 0;
 	baseColor: Color = new Color(0, 0, 0);
-	circleMaskRadius:number = 8;
+	circleMaskRadius:number = 16;
 	prewarmCycles:number = 1;
-	newPixelsPerFrame:number = 16;
+	newPixelsPerFrame:number = 20;
 	smokeFactor:number=0.1;
-	smokeColorRandStart:Color = new Color(0, 100, 100);
-	smokeColorRandEnd:Color = new Color(0, 180, 180);
+	smokeColorRandStart:Color = new Color(25, 25, 25);
+	smokeColorRandEnd:Color = new Color(50, 50, 50);
+	scaleFactor:number =  0.5;
 }
 
 export class Background {
@@ -161,7 +165,6 @@ export class Background {
 	private readonly _ctx;
 	private _canvasSize:Vector2;
 	private _lastCanvasSize: Vector2;
-	private _scale:Vector2;
 	private static readonly _selectionMask3x3Cross :Vector2[] = [
 			new Vector2(0, -1),
 			new Vector2(-1, 0),
@@ -187,6 +190,8 @@ export class Background {
 	];
 	private readonly _rFactory;
 
+	private _pIndex:number;
+
 	constructor(root: ElementRef, style:string, private _settings: Settings) {
 		this._root = root.nativeElement;
 		this._canvas = document.createElement('canvas');
@@ -196,8 +201,9 @@ export class Background {
 
 		this._canvasSize = new Vector2(0, 0);
 		this._lastCanvasSize = new Vector2(0, 0);
-		this._scale = new Vector2(0, 0);
 		this._rFactory = new Random.RandomFactory32(performance.now(), 1);
+
+		this._pIndex = 0;
 
 		this.updateCanvasSize()
 
@@ -236,8 +242,8 @@ export class Background {
 		let style = window.getComputedStyle(this._canvas);
 		this._lastCanvasSize = this._canvasSize;
 		this._canvasSize = new Vector2(parseInt(style.getPropertyValue('width')), parseInt(style.getPropertyValue('height')));
+		this._canvasSize = this._canvasSize.scale(this._settings.scaleFactor);
 		if ( !this._canvasSize.equals(this._lastCanvasSize) ) {
-			//!this._scale = new Vector2(this._canvasSize.x/this._defaultScale.x, this._canvasSize.y/this._defaultScale.y);
 			let data = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
 			//we loose the canvas state here if we don't put the image back on after changing canvas size attributes
 			this._canvas.setAttribute('width', this._canvasSize.x);
@@ -285,13 +291,13 @@ export class Background {
 	private applySmoke(dataIn, toPixels) {
 		let dataOut = this.operate(dataIn, Background._selectionMask3x3Cross, toPixels, (sColor, dColors) => {
 			let dCs = dColors.map( c => !this.outOfBounds(c.pos) ? c : this._settings.baseColor );
-			let cal = (maxSmokeValue) => {
-				return this._settings.smokeFactor * (dCs.reduce( (acc, cv) => acc+cv.g, 0 )-dCs.length*maxSmokeValue);
+			let cal = (maxSmokeValue, prop) => {
+				return this._settings.smokeFactor * (dCs.reduce( (acc, cv) => acc+cv[prop], 0 )-dCs.length*maxSmokeValue);
 			}
-			//!operate on magntidue of color!
-			let r = cal(this._settings.smokeColorRandEnd.r);
-			let g = cal(this._settings.smokeColorRandEnd.g);
-			let b = cal(this._settings.smokeColorRandEnd.b);
+
+			let r = cal(this._settings.smokeColorRandEnd.r, 'r');
+			let g = cal(this._settings.smokeColorRandEnd.g, 'g');
+			let b = cal(this._settings.smokeColorRandEnd.b, 'b');
 			sColor.add(new Color(r, g, b));
 		});
 		return dataOut;
@@ -323,15 +329,21 @@ export class Background {
 			newPixels.push(Vector2.randomRange(Vector2.zero, this._canvasSize, this._rFactory));
 		}
 		curData = this.addPixels(curData, newPixels);
+		//curData = this.applyBlur(curData, newPixels);
+
+		//		let smokePixels = [];
+		//		let smokePixelsCentrePoint = Vector2.randomRange(Vector2.zero, this._canvasSize, this._rFactory);
+		//		smokePixels = this._circleMask.map( v => v.add(smokePixelsCentrePoint) );
+		//		curData = this.applySmoke(curData, smokePixels);
 
 		let smokePixels = [];
-		let smokePixelsCentrePoint = Vector2.randomRange(Vector2.zero, this._canvasSize, this._rFactory);
-		smokePixels = this._circleMask.map( v => v.add(smokePixelsCentrePoint) );
+		for(let i = this._pIndex; i < this._pIndex+160; i++) {
+			smokePixels.push(Vector2.indexToVector(i, this._canvasSize));
+		}
+		this._pIndex+=160;
 		curData = this.applySmoke(curData, smokePixels);
 
-		curData = this.applyBlur(curData, smokePixels);
-
-		this._ctx.putImageData(curData, 0, 0 );
+		this._ctx.putImageData(curData, 0, 0);
 	}
 
 	render(dt:number) {

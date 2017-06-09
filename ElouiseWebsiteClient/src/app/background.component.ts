@@ -9,8 +9,14 @@ import { IRenderComponent } from './IRenderComponent';
 	styles: [
 		`
 		.bstyle {
-			width: 300px;
-			height: 300px;
+			position: fixed;
+			z-index: -100;
+			top: 0px;
+			left: 0px;
+			right: 0px;
+			bottom: 0px;
+			width: 100%;
+			height: 100%;
 		}
 		`,
 	],
