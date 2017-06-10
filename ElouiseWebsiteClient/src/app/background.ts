@@ -9,6 +9,7 @@ declare const Random;
 
 class Vector2 {
 	static readonly zero: Vector2 = new Vector2(0, 0);
+	static readonly one: Vector2 = new Vector2(1, 1);
 
 	constructor(public x:number, public y:number) {} 
 
@@ -47,12 +48,32 @@ class Vector2 {
 		return new Vector2(this.x/s, this.y/s);
 	}
 
+	divV(v:Vector2): Vector2 {
+		return new Vector2(this.x/v.x, this.y/v.y);
+	}
+
 	trunc():Vector2 {
 		return new Vector2(Math.trunc(this.x), Math.trunc(this.y));
 	}
 
 	ceil():Vector2 {
 		return new Vector2(Math.ceil(this.x), Math.ceil(this.y));
+	}
+
+	sub(v:Vector2):Vector2 {
+		return new Vector2(this.x-v.x, this.y-v.y);
+	}
+
+	modV(v:Vector2) :Vector2 {
+		return new Vector2(this.x%v.x, this.y%v.y);
+	}
+
+	min():number {
+		return Math.min(this.x, this.y);
+	}
+
+	max():number {
+		return Math.max(this.x, this.y);
 	}
 
 }
@@ -181,6 +202,7 @@ export class Settings {
 	smokeColorRandStart:Color = new Color(25, 25, 25);
 	smokeColorRandEnd:Color = new Color(50, 50, 50);
 	scaleFactor:number =  0.5;
+	smokeSubSamples = 6;
 }
 
 export class Background {
@@ -219,7 +241,9 @@ export class Background {
 	];
 	private readonly _rFactory;
 
-	private readonly _noiseImages;
+	private _noiseImage;
+
+	private _dtV:Vector2;
 
 	constructor(root: ElementRef, style:string, private _settings: Settings) {
 		let start = performance.now();
@@ -234,48 +258,54 @@ export class Background {
 		this._lastCanvasSize = new Vector2(0, 0);
 		this._rFactory = new Random.RandomFactory32(performance.now(), 1);
 
+		this._dtV = Vector2.zero;
+
 		this.updateCanvasSize()
 
-		this._noiseImages = [];
-		this._noiseImages.push(this.createNoise());
-		//this._noiseImages.push(this.createNoise());
+		//Noise created in updateCanvasSize
 
 		console.log('start time: '+(performance.now()-start).toPrecision(3)+'ms');
-		console.log(this._canvasSize);
 
-		this.draw();
+		this.draw(0.016);
 	}
 
 	private smoothNoise(pos:Vector2, data:any):number {
-		let fract = new Vector2(pos.x - Math.trunc(pos.x), pos.y - Math.trunc(pos.y));
+		let posInt = pos.copy().trunc();
+		let fract = pos.sub(posInt);
 
-		let range = Background._mask2x2.map( v => v.add(pos) );
-		//Wrap around bounds and convert to LinkedColor
-		let lRange = range.map( c => this.outOfBounds(c) ? new LinkedColor( new Vector2((c.x+this._canvasSize.x) % this._canvasSize.x, (c.y+this._canvasSize.y) % this._canvasSize.y), data)  : new LinkedColor( c, data ) );
+		let size = new Vector2(data.width, data.height);
+
+		let tlPos = posInt.add(size).modV(size);
+		let brPos = tlPos.add(size).sub(Vector2.one).modV(size);
+
+		let colors = [
+			new LinkedColor(tlPos, data),
+			new LinkedColor(new Vector2(brPos.x, tlPos.y), data),
+			new LinkedColor(new Vector2(tlPos.x, brPos.y), data),
+			new LinkedColor(brPos, data),
+		]
 
 		let r = 0
-		r += fract.x * fract.y * (lRange[0].r/256);
-		r += (1-fract.x) * fract.y * (lRange[1].r/256);
-		r += fract.x * (1-fract.y) * (lRange[2].r/256);
-		r += (1-fract.x) * (1-fract.y) * (lRange[3].r/256);
+		r += fract.x * fract.y * (colors[0].r/256);
+		r += (1-fract.x) * fract.y * (colors[1].r/256);
+		r += fract.x * (1-fract.y) * (colors[2].r/256);
+		r += (1-fract.x) * (1-fract.y) * (colors[3].r/256);
 		return r;
 	}
 
 	private turbulence(pos:Vector2, data:any):number {
-		let startSize = 32;
-		let size = startSize;
-		let v = 0
-		while( size >= 1 ) {
-			//v += this.smoothNoise(pos.div(size), data) * size;
-			v += new LinkedColor(pos.div(size).trunc(), data).r/256 * size;
-			size/= 2;
+		let v = 0;
+		for(let i = this._settings.smokeSubSamples; i >= 1; i-- ) {
+			let size = Math.pow(2, i);
+			v += this.smoothNoise(pos.div(size), data) * size;
 		}
 
-		return 128 * v / startSize;
+		return 128 * v / Math.pow(2, this._settings.smokeSubSamples);
 	}
 
 	private createNoise() {
-		let noise = this._ctx.createImageData(this._canvasSize.x, this._canvasSize.y);
+		let size = this._canvasSize.min();
+		let noise = this._ctx.createImageData(size, size);
 
 		//Random noise initalize
 		for( let x = 0; x < noise.width; x++ ) {
@@ -290,9 +320,7 @@ export class Background {
 		for( let x = 0; x < adjust.width; x++ ) {
 			for( let y = 0; y < adjust.height; y++ ) {
 				let d = new LinkedColor(new Vector2(x, y), adjust);
-				//d.r = new LinkedColor(d.pos.div(8).trunc(), noise).r;
-				//d.r = this.smoothNoise(d.pos.div(8).trunc(), noise)*256;
-				d.r = this.turbulence(d.pos.div(8).trunc(), noise);
+				d.r = this.turbulence(d.pos, noise);
 			}
 		}
 
@@ -304,25 +332,28 @@ export class Background {
 		this._ctx.fillRect(0, 0, this._canvasSize.x, this._canvasSize.y);
 	}
 
+	private createNoiseImage():void {
+		this._noiseImage = this.createNoise();
+	}
+
 	private updateCanvasSize() : void {
 		let style = window.getComputedStyle(this._canvas);
 		this._lastCanvasSize = this._canvasSize;
 		this._canvasSize = new Vector2(parseInt(style.getPropertyValue('width')), parseInt(style.getPropertyValue('height')));
-		let max = Math.max(this._canvasSize.x, this._canvasSize.y);
-		this._canvasSize = new Vector2(max, max);
 		this._canvasSize = this._canvasSize.scale(this._settings.scaleFactor);
 		this._canvasSize = this._canvasSize.ceil();
 		if ( !this._canvasSize.equals(this._lastCanvasSize) ) {
-			let data = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
+			//let data = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
 			//we loose the canvas state here if we don't put the image back on after changing canvas size attributes
 			this._canvas.setAttribute('width', this._canvasSize.x);
 			this._canvas.setAttribute('height', this._canvasSize.y);
+			this.createNoiseImage();
 			//Is larger, fill extra space with black, cull the rest.
-			if ( this._canvasSize.magnitude() > this._lastCanvasSize.magnitude() ) {
-				this.fillCanvasBaseColor();
-			}
+			//if ( this._canvasSize.magnitude() > this._lastCanvasSize.magnitude() ) {
+			//	this.fillCanvasBaseColor();
+			//}
 			//put the image data back
-			this._ctx.putImageData(data, 0, 0);
+			//this._ctx.putImageData(data, 0, 0);
 		}
 	}
 
@@ -334,31 +365,35 @@ export class Background {
 		return false;
 	}
 
-	private draw() {
+	private draw(dt:number) {
 		let curData = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
 
-		for(let x = 0; x < this._canvasSize.x; x++ ) {
-			for( let y = 0; y < this._canvasSize.y; y++ ) {
+		for(let x = 0; x < this._noiseImage.width; x++ ) {
+			for( let y = 0; y < this._noiseImage.height; y++ ) {
 				let pos = new Vector2(x, y);
-				let s = new LinkedColor(pos, this._noiseImages[0]);
-				let d = new LinkedColor(pos, curData);
+				let s = new LinkedColor(pos, this._noiseImage);
+				//modify to match toIndex transformation.
+				let dx = ;
+				let dy = ;
+				let d = new LinkedColor(new Vector(dx, dy), curData);
 				d.r = s.r;
 				d.a = 255;
 			}
 		}
 
 		this._ctx.putImageData(curData, 0, 0);
+
+		this._dtV = this._dtV.add(new Vector2(dt, dt));
 	}
 
 
 	private drawfr(dt:number) {
 		this._ctx.save();
 		this._ctx.fillStyle = 'white';
-		this._ctx.textAlign = 'left';
 		this._ctx.baseline = 'middle';
-		this._ctx.translate(this._canvasSize.x-75, 35);
-		this._ctx.scale(2, 2);
-		this._ctx.fillText(dt.toPrecision(3), 0, 0);
+		this._ctx.translate(this._canvasSize.x-140*this._settings.scaleFactor, 60*this._settings.scaleFactor);
+		this._ctx.scale(this._settings.scaleFactor*4, this._settings.scaleFactor*4);
+		this._ctx.fillText((dt*1000).toPrecision(3)+'ms', 0, 0);
 		this._ctx.restore();
 	}
 
@@ -367,7 +402,7 @@ export class Background {
 		this.updateCanvasSize();
 		//this._ctx.clearRect(0, 0, this._canvasSize.x, this._canvasSize.y);
 
-		//this.draw();
+		//this.draw(dt);
 		//this.drawfr(dt);
 	}
 
