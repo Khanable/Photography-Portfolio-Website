@@ -5,8 +5,6 @@
 //- image fallback, (unity clouds shader, overlaping images rotating)
 import { ElementRef } from '@angular/core';
 
-declare const Random;
-
 class Vector2 {
 	static readonly zero: Vector2 = new Vector2(0, 0);
 	static readonly one: Vector2 = new Vector2(1, 1);
@@ -14,7 +12,7 @@ class Vector2 {
 	constructor(public x:number, public y:number) {} 
 
 	toIndex(size:Vector2) : number {
-		return this.x*size.y+this.y%size.x;
+		return this.y*size.x+this.x%size.y;
 	}
 
 	static randomRange(s:Vector2, e:Vector2, rFactory) : Vector2 {
@@ -141,7 +139,7 @@ class LinkedColor implements IColor {
 	private static readonly _numColors:number = 4;
 
 	constructor(private _pos:Vector2, private _data:ImageData) {
-		this._index = this._pos.toIndex(new Vector2(this._data.width, this._data.height))*LinkedColor._numColors;
+		this._index = this._pos.toIndex(new Vector2(this._data.width, this._data.height));
 	}
 
 	mag():number {
@@ -239,7 +237,6 @@ export class Background {
 		2/16, 4/16, 2/16,
 		1/16, 2/16, 1/16,
 	];
-	private readonly _rFactory;
 
 	private _noiseImage;
 
@@ -256,7 +253,6 @@ export class Background {
 
 		this._canvasSize = new Vector2(0, 0);
 		this._lastCanvasSize = new Vector2(0, 0);
-		this._rFactory = new Random.RandomFactory32(performance.now(), 1);
 
 		this._dtV = Vector2.zero;
 
@@ -368,14 +364,19 @@ export class Background {
 	private draw(dt:number) {
 		let curData = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
 
+		console.log(this._canvasSize.x, this._canvasSize.y);
+		console.log(this._noiseImage.width, this._noiseImage.height);
+
+		//toIndex is still wrong
+		//	let test1 = new Vector2(0, 0);
+		//	lconsole.log(test1.toIndex(new Vector2(this._noiseImage.width, this._noiseImage.height)));
+
+
 		for(let x = 0; x < this._noiseImage.width; x++ ) {
 			for( let y = 0; y < this._noiseImage.height; y++ ) {
 				let pos = new Vector2(x, y);
 				let s = new LinkedColor(pos, this._noiseImage);
-				//modify to match toIndex transformation.
-				let dx = ;
-				let dy = ;
-				let d = new LinkedColor(new Vector(dx, dy), curData);
+				let d = new LinkedColor(pos, curData);
 				d.r = s.r;
 				d.a = 255;
 			}

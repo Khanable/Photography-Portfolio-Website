@@ -4,10 +4,15 @@ import { CategoriesComponent } from './categories.component';
 import { AboutComponent } from './about.component';
 
 const routes: Routes = [
-  { path: '', redirectTo: '/index', pathMatch: 'full' },
   { path: 'index',  component: CategoriesComponent },
   { path: 'about',  component: AboutComponent },
 ];
+
+//const routes: Routes = [
+//  { path: '', redirectTo: '/index', pathMatch: 'full' },
+//  { path: 'index',  component: CategoriesComponent },
+//  { path: 'about',  component: AboutComponent },
+//];
 
 @NgModule({
   imports: [ RouterModule.forRoot(routes) ],
