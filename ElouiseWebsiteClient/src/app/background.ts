@@ -5,6 +5,18 @@
 //- image fallback, (unity clouds shader, overlaping images rotating)
 import { ElementRef } from '@angular/core';
 
+const wrap = function(v, s, e) {
+	let diffRange = e-s;
+	let vRange = Math.abs(v-s);
+	return (vRange%diffRange)+s;
+}
+
+const randomRange = function(s, e) {
+	let r = Math.random();
+	let diff = e-s;
+	return s+(r*diff);
+}
+
 class Vector2 {
 	static readonly zero: Vector2 = new Vector2(0, 0);
 	static readonly one: Vector2 = new Vector2(1, 1);
@@ -12,11 +24,7 @@ class Vector2 {
 	constructor(public x:number, public y:number) {} 
 
 	toIndex(size:Vector2) : number {
-		return this.y*size.x+this.x%size.y;
-	}
-
-	static randomRange(s:Vector2, e:Vector2, rFactory) : Vector2 {
-		return new Vector2(rFactory.nextIntRange(s.x, e.x), rFactory.nextIntRange(s.y, e.y));
+		return Math.floor(this.y)*Math.floor(size.x)+Math.floor(this.x);
 	}
 
 	add(v:Vector2): Vector2 { 
@@ -74,12 +82,23 @@ class Vector2 {
 		return Math.max(this.x, this.y);
 	}
 
+	wrap(start:Vector2, end:Vector2) {
+		return new Vector2(wrap(this.x, start.x, end.x), wrap(this.y, start.y, end.y))
+	}
+	rotate(r:number) {
+		return new Vector2(this.x*Math.cos(r)-this.y*Math.sin(r), this.x*Math.sin(r)+this.y*Math.cos(r));
+	}
+	normalize() {
+		let mag = this.magnitude();
+		return new Vector2(this.x/mag, this.y/mag);
+	}
+
 }
 
 interface IColor {
-	r:number;
-	g:number;
-	b:number;
+	readonly r:number;
+	readonly g:number;
+	readonly b:number;
 
 	add(c:IColor): IColor;
 	mag():number;
@@ -139,7 +158,7 @@ class LinkedColor implements IColor {
 	private static readonly _numColors:number = 4;
 
 	constructor(private _pos:Vector2, private _data:ImageData) {
-		this._index = this._pos.toIndex(new Vector2(this._data.width, this._data.height));
+		this._index = this._pos.toIndex(new Vector2(this._data.width, this._data.height))*LinkedColor._numColors;
 	}
 
 	mag():number {
@@ -254,7 +273,7 @@ export class Background {
 		this._canvasSize = new Vector2(0, 0);
 		this._lastCanvasSize = new Vector2(0, 0);
 
-		this._dtV = Vector2.zero;
+		this._dtV = new Vector2(randomRange(-1, 1), randomRange(-1, 1));
 
 		this.updateCanvasSize()
 
@@ -364,27 +383,34 @@ export class Background {
 	private draw(dt:number) {
 		let curData = this._ctx.getImageData(0, 0, this._canvasSize.x, this._canvasSize.y);
 
-		console.log(this._canvasSize.x, this._canvasSize.y);
-		console.log(this._noiseImage.width, this._noiseImage.height);
-
-		//toIndex is still wrong
-		//	let test1 = new Vector2(0, 0);
-		//	lconsole.log(test1.toIndex(new Vector2(this._noiseImage.width, this._noiseImage.height)));
-
-
-		for(let x = 0; x < this._noiseImage.width; x++ ) {
-			for( let y = 0; y < this._noiseImage.height; y++ ) {
-				let pos = new Vector2(x, y);
-				let s = new LinkedColor(pos, this._noiseImage);
-				let d = new LinkedColor(pos, curData);
-				d.r = s.r;
-				d.a = 255;
+		let resultantColour = function(c1:number, c2:number) {
+			//mutliplicative
+			return 20+(c1-c2);
+		}
+		for(let y = 0; y < this._noiseImage.height; y++ ) {
+			for( let x = 0; x < this._noiseImage.width; x++ ) {
+				let oPos = new Vector2(x, y);
+				let sPos = oPos.add(this._dtV).wrap(Vector2.zero, new Vector2(this._noiseImage.width, this._noiseImage.height));
+				let tPos = oPos.add(new Vector2(100, 0));
+				let oCol = new LinkedColor(oPos, this._noiseImage) as IColor;
+				let sCol = new LinkedColor(sPos, this._noiseImage) as IColor;
+				let tCol = new LinkedColor(tPos, curData);
+				tCol.r = resultantColour(oCol.r, sCol.r);
+				tCol.g = resultantColour(oCol.r, sCol.r);
+				tCol.b = resultantColour(oCol.r, sCol.r);
+				tCol.a = 255;
 			}
 		}
 
 		this._ctx.putImageData(curData, 0, 0);
+		this._dtV = this._dtV.add(this._dtV.normalize().rotate(0.75).scale(dt*80));
+		if ( this._dtV.x > this._noiseImage.width ) {
+			this._dtV = new Vector2(0, this._dtV.y);
+		}
+		if ( this._dtV.y > this._noiseImage.height ) {
+			this._dtV = new Vector2(this._dtV.x, 0);
+		}
 
-		this._dtV = this._dtV.add(new Vector2(dt, dt));
 	}
 
 
@@ -400,10 +426,10 @@ export class Background {
 
 	render(dt:number) {
 		this._ctx.setTransform(1, 0, 0, 1, 0, 0);
-		this.updateCanvasSize();
+		//this.updateCanvasSize();
 		//this._ctx.clearRect(0, 0, this._canvasSize.x, this._canvasSize.y);
 
-		//this.draw(dt);
+		this.draw(dt);
 		//this.drawfr(dt);
 	}
 

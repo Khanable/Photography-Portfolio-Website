@@ -25,7 +25,7 @@ export class FCLogoComponent implements IRenderComponent, AfterViewInit, OnDestr
 	constructor(private ref: ElementRef) {
 		this.renderAdd = new EventEmitter<IRenderComponent>();
 		this.renderRemove = new EventEmitter<IRenderComponent>();
-		this._logo = new fclogo.Logo(ref.nativeElement, 'fclogo');
+		//this._logo = new fclogo.Logo(ref.nativeElement, 'fclogo');
 	}
 
 
@@ -38,6 +38,6 @@ export class FCLogoComponent implements IRenderComponent, AfterViewInit, OnDestr
 	}
 
 	render(dt:number):void {
-		this._logo.render(dt);
+		//this._logo.render(dt);
 	}
 }
