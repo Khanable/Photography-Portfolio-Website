@@ -3,39 +3,26 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpModule } from '@angular/http';
-
 import { AppRoutingModule } from './app-routing.module';
 
 import { AppComponent } from './app.component';
-import { CategoryComponent } from './category.component';
-import { CategoriesComponent } from './categories.component';
-import { ImageComponent } from './image.component';
-import { AboutComponent } from './about.component';
-import { FCLogoComponent } from './fclogo.component';
-import { MenuBarComponent } from './menubar.component';
-import { BackgroundComponent } from './background.component';
-
-import { CategoriesService } from './categories.service';
+import { IndexComponent } from './index/index.component';
+import { AboutComponent } from './about/about.component';
 
 @NgModule({
   declarations: [
 		AppComponent,
-		CategoryComponent,
-		CategoriesComponent,
-		ImageComponent,
+		IndexComponent,
 		AboutComponent,
-		FCLogoComponent,
-		MenuBarComponent,
-		BackgroundComponent,
   ],
   imports: [
-		AppRoutingModule,
     BrowserModule,
 		BrowserAnimationsModule,
     FormsModule,
     HttpModule,
+		AppRoutingModule,
   ],
-  providers: [CategoriesService],
+  providers: [],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

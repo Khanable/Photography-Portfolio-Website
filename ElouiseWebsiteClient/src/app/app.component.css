@@ -1,43 +1,53 @@
-#name {
+.hoz {
+	width: 100%;
+	height: 20px;
+	flex-flow: column nowrap;
+}
+.vert {
+	width: 20px;
+	height: 100%;
+	flex-flow: row nowrap;
+}
+.control {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	align-content: center;
 	position: absolute;
-	z-index: 100;
+}
+.control label {
+	display: flex;
+	position: static;
+}
+#northControl {
+	top: 0px;
+	left: 0px;
+}
+#southControl {
+	bottom: 0px;
+	left: 0px;
+}
+#eastControl {
 	right: 0px;
 	top: 0px;
 }
-
-#footer, #header {
-	width: 100%;
-	position: fixed;
-}
-
-#header {
+#westControl {
+	left: 0px;
 	top: 0px;
-	height: 20px;
-	left: 0px;
-	background-color: red;
+}
+#eastControl label {
+	transform: rotateZ(90deg);
+}
+#westControl label {
+	transform: rotateZ(-90deg);
 }
 
-#footer, #menubar-trigger {
-	height: 20px;
-}
-
-#footer {
-	bottom: 18px;
-	left: 0px;
-}
-
-#menubar-trigger {
-	background-color: red;
-	width: 100%;
-	z-index: 50;
-}
-
-menubar-root {
-	background-color: blue;
-	display: block;
-}
-
-#menubar-bottom {
-	background-color: blue;
-	height: 10px;
+#mainOut {
+	display: flex;
+	flex-flow: row nowrap;
+	position: absolute;
+	left: 20px;
+	right: 20px;
+	top: 20px;
+	bottom: 20px;
 }
