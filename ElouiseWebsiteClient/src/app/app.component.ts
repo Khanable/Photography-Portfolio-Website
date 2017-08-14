@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 
 import { NavigationControlService } from './navigation-control.service';
+import { RenderService } from './render.service';
 
 @Component({
 	selector: 'app-root',
@@ -9,11 +10,16 @@ import { NavigationControlService } from './navigation-control.service';
 		'./app.component.css',
 	],
 	providers: [
-		NavigationControlService
+		NavigationControlService,
+		RenderService,
 	],
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
 
-	constructor(private readonly _nav:NavigationControlService) {}
+	constructor(private readonly _nav:NavigationControlService, private readonly _render:RenderService) {
+	}
 
+	ngOnInit():void {
+		this._render.startRenderLoop();
+	}
 }
