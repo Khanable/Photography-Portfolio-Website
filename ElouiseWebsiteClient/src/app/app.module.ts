@@ -8,12 +8,14 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { IndexComponent } from './index/index.component';
 import { AboutComponent } from './about/about.component';
+import { BackgroundComponent } from './background/background.component';
 
 @NgModule({
   declarations: [
 		AppComponent,
 		IndexComponent,
 		AboutComponent,
+		BackgroundComponent,
   ],
   imports: [
     BrowserModule,

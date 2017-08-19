@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy } from '@angular/core';
 
 import { NavigationControlService } from './navigation-control.service';
 import { RenderService } from './render.service';
@@ -14,12 +14,15 @@ import { RenderService } from './render.service';
 		RenderService,
 	],
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements AfterViewInit {
 
 	constructor(private readonly _nav:NavigationControlService, private readonly _render:RenderService) {
 	}
 
-	ngOnInit():void {
+	ngAfterViewInit():void {
 		this._render.startRenderLoop();
+	}
+	ngOnDestroy():void {
+		this._render.stopRenderLoop();
 	}
 }
