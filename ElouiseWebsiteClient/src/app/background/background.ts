@@ -237,17 +237,17 @@ class LinkedColor implements IColor {
 
 
 export class Settings {
-	lightColor:Color = new Color(230, 230, 230);
-	fallOffColorFactor:Vector3 = new Vector3(0.8, 0.8, 0.5);
-	//!Lens Falloff?!
-	frameFallOffFactor = 0.2;
-	lensRadius:number = 80;
-	flickerTimeMin:number = 2;
-	flickerTimeMax:number = 4;
-	flickerResolveTimeMin:number = 0.08;
-	flickerResolveTimeMax:number = 0.25;
-	flickerLightColorModFactorMin:number = 0.5;
-	flickerLightColorModFactorMax:number = 0.8;
+	lightColor:Color = new Color(255, 249, 255);
+	fallOffHueChangeFactor:Vector3 = new Vector3(1, 1, 1);
+	lensFallOffFactor = 0.8;
+	frameFallOffFactor = 0.6;
+	lensRadius:number = 35;
+	flickerTimeMin:number = 15;
+	flickerTimeMax:number = 60;
+	flickerResolveTimeMin:number = 0.05;
+	flickerResolveTimeMax:number = 0.65;
+	flickerLightColorModFactorMin:number = 0.60;
+	flickerLightColorModFactorMax:number = 0.90;
 }
 
 export class Background {
@@ -267,8 +267,8 @@ export class Background {
 	];
 
 	private _flickerT:number;
-	//!Implement Me!
-	private readonly baseSize:Vector2 = new Vector2(1280, 720);
+
+	private readonly _baseSize:Vector2 = new Vector2(100, 56);
 
 	constructor(canvas:ElementRef, private readonly _settings: Settings) {
 		Object.freeze(this._settings);
@@ -276,27 +276,29 @@ export class Background {
 		let start = performance.now();
 
 		this._canvas = canvas;
+		this._canvas.width = this._baseSize.x;
+		this._canvas.height = this._baseSize.y;
 		this._ctx = this._canvas.getContext('2d');
 
-		this._canvasSize = new Vector2(0, 0);
-		this._lastCanvasSize = new Vector2(0, 0);
+		this._canvasSize = this._baseSize;
+		//this._lastCanvasSize = new Vector2(0, 0);
 
-		this.updateCanvasSize()
+		//	this.updateCanvasSize()
 		this.newFlicker(0);
 
 		console.log('start time: '+(performance.now()-start).toPrecision(3)+'ms');
 	}
 
-	private updateCanvasSize() : void {
-		let style = window.getComputedStyle(this._canvas);
-		this._lastCanvasSize = this._canvasSize;
-		this._canvasSize = new Vector2(parseInt(style.getPropertyValue('width')), parseInt(style.getPropertyValue('height')));
-		this._canvasSize = this._canvasSize.ceil();
-		if ( !this._canvasSize.equals(this._lastCanvasSize) ) {
-			this._canvas.setAttribute('width', this._canvasSize.x);
-			this._canvas.setAttribute('height', this._canvasSize.y);
-		}
-	}
+	//private updateCanvasSize() : void {
+	//	let style = window.getComputedStyle(this._canvas);
+	//	this._lastCanvasSize = this._canvasSize;
+	//	this._canvasSize = new Vector2(parseInt(style.getPropertyValue('width')), parseInt(style.getPropertyValue('height')));
+	//	this._canvasSize = this._canvasSize.ceil();
+	//	if ( !this._canvasSize.equals(this._lastCanvasSize) ) {
+	//		this._canvas.setAttribute('width', this._canvasSize.x);
+	//		this._canvas.setAttribute('height', this._canvasSize.y);
+	//	}
+	//}
 
 	private outOfBounds(pos: Vector2): boolean {
 		if ( pos.x < 0 || pos.y < 0 || pos.x >= this._canvasSize.x || pos.y >= this._canvasSize.y ) {
@@ -314,8 +316,8 @@ export class Background {
 
 	private draw(time:number, dt:number) {
 		let curData = this._ctx.createImageData(this._canvasSize.x, this._canvasSize.y);
-		let maxRadius = this._canvasSize.mag();
-		let endColor = this._settings.lightColor.mulV(this._settings.fallOffColorFactor);
+		let maxRadius = this._canvasSize.mag()/2;
+		let lensOuterColor = this._settings.lightColor.mulV(this._settings.fallOffHueChangeFactor).mul(this._settings.lensFallOffFactor);
 		let centre = this._canvasSize.scale(0.5);
 		let distFromLensToFrame = maxRadius-this._settings.lensRadius;
 		let flickering = time >= this._nextFlickerTime;
@@ -333,15 +335,14 @@ export class Background {
 				curLinkedColor.a = 255;
 				let curColor = null;
 				let toCentreDistance = curPos.distance(centre);
-				let fallOffFactor = 0;
 				//Outside lens
 				if ( toCentreDistance > this._settings.lensRadius ) {
 					let distFromLensEdge = toCentreDistance-this._settings.lensRadius;
-					curColor = Color.lerp(distFromLensEdge/distFromLensToFrame, endColor, endColor.mul(this._settings.frameFallOffFactor));
+					curColor = Color.lerp(distFromLensEdge/distFromLensToFrame, lensOuterColor, lensOuterColor.mul(this._settings.frameFallOffFactor));
 				}
 				//Inside lens
 				else {
-					curColor = Color.lerp(toCentreDistance/this._settings.lensRadius, this._settings.lightColor, endColor);
+					curColor = Color.lerp(toCentreDistance/this._settings.lensRadius, this._settings.lightColor, lensOuterColor);
 				}
 
 				//handle flicker

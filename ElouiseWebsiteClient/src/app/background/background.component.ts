@@ -9,14 +9,11 @@ import { RenderService } from '../render.service';
 	`,
 	styles: [
 		`
-		.canvas {
+		canvas {
 			position: absolute;
-			display: flex;
-			z-index: -100;
-			top: 0px;
-			left: 0px;
-			right: 0px;
-			bottom: 0px;
+			z-index: -1;
+			width: 100%;
+			height: 100%;
 		}
 		`,
 	],

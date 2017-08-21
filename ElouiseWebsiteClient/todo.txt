@@ -1,0 +1,1 @@
+- Put a startup sequence on the projecter, then the first frame loads which is the title page.
