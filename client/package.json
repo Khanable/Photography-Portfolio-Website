@@ -1,0 +1,16 @@
+{
+	"scripts": {
+		"start": "webpack-dev-server",
+		"build": "webpack"
+	},
+	"dependencies": {
+		"webpack": "latest",
+		"webpack-dev-server": "latest",
+		"style-loader": "latest",
+		"css-loader": "latest",
+		"html-webpack-plugin": "latest",
+		"clean-webpack-plugin": "latest",
+		"rxjs": "latest",
+		"html-loader": "latest"
+	}
+}
