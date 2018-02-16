@@ -1,0 +1,64 @@
+div,label {
+	display: flex;
+}
+
+.arrow {
+	justify-content: center;
+}
+
+.arrowVertical {
+	width: 100%;
+	height: 20px;
+}
+
+.arrowHorizontal {
+	width: 20px;
+	height: 100%;
+	align-items: center;
+}
+
+.arrowHorizontal > label {
+	transform: rotate(90deg);
+}
+
+#mainContainer {
+	flex-flow: column nowrap;
+	width: 100%;
+	height: 100%;
+}
+
+#westEastContainer {
+	flex-flow: row nowrap;
+	width: 100%;
+	height: 100%;
+}
+
+#content {
+	width: 100%;
+	height: 100%;
+}
+
+#arrowN {
+	top: 0px;
+}
+
+#arrowS {
+	bottom: 0px;
+}
+
+#arrowE {
+	right: 0px;
+}
+
+#arrowW {
+	left: 0px;
+}
+
+.arrowNav {
+	background: black;
+	color: white;
+}
+
+.noArrowNav {
+	visibility: hidden;
+}

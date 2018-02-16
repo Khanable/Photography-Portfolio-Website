@@ -3,19 +3,20 @@ import { ViewController } from './view.js';
 import { GetViewFromUrl } from './nav.js';
 import { UpdateController } from './update.js';
 
+const TransitionSpeed = 1250;
+
 class Main {
 	constructor() {
-		this._view = new ViewController(this, NavGraph, Views);
+		this._view = new ViewController(this, NavGraph, Views, TransitionSpeed);
 	}
 
-	initLoad() {
+	init() {
 		UpdateController.start();
-		//let location = GetViewFromUrl();
-		this._view.load(0);
-		this._view.transition(1);
+		let location = GetViewFromUrl();
+		this._view.load(location);
 	}
 }
 
 
 export const Controller = new Main();
-window.addEventListener('load', Controller.initLoad.bind(Controller));
+window.addEventListener('load', Controller.init.bind(Controller));
