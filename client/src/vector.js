@@ -19,6 +19,10 @@ export class Vector2 {
 	mulv(v) {
 		return new Vector2(this.x*v.x, this.y*v.y);
 	}
+
+	div(s) {
+		return new Vector2(this.x/s, this.y/s);
+	}
 }
 
 Vector2.One = new Vector2(1, 1);

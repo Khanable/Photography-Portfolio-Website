@@ -3,11 +3,12 @@ import { ViewController } from './view.js';
 import { GetViewFromUrl } from './nav.js';
 import { UpdateController } from './update.js';
 
-const TransitionSpeed = 1250;
+//Seconds
+const TransitionTime = 0.8;
 
 class Main {
 	constructor() {
-		this._view = new ViewController(this, NavGraph, Views, TransitionSpeed);
+		this._view = new ViewController(this, NavGraph, Views, TransitionTime);
 	}
 
 	init() {

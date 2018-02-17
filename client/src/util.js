@@ -1,3 +1,5 @@
+import { Vector2 } from './vector.js';
+
 if ( !String.prototype.format ) {
 	String.prototype.format = function() {
 		let args = arguments;
@@ -12,4 +14,8 @@ else {
 
 export const AppendAttribute = function(node, attr, value) {
 	node.setAttribute(attr, node.getAttribute(attr)+value);
+}
+
+export const GetWindowSize = function() {
+	return new Vector2(window.innerWidth, window.innerHeight);
 }

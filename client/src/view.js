@@ -1,6 +1,6 @@
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
-import { AppendAttribute } from './util.js';
+import { AppendAttribute, GetWindowSize } from './util.js';
 import * as mainHtml from './main.html';
 import * as hostHtml from './host.html';
 import './main.css';
@@ -44,12 +44,12 @@ class TransitionNode {
 }
 
 export class ViewController {
-	constructor(controller, navGraph, views, transitionSpeed) {
+	constructor(controller, navGraph, views, transitionTime) {
 		this._navGraph = navGraph;
 		this._curLocation = null;
 		this._views = views;
 		this._parser = new DOMParser();
-		this._transitionSpeed = transitionSpeed;
+		this._transitionTime = transitionTime;
 		this._entryNode = null;
 
 		this._curLocation = null;
@@ -190,7 +190,9 @@ export class ViewController {
 			let transitionNodes = [this._transitionNodeFrom, this._transitionNodeTo];
 			for(let tNode of transitionNodes) {
 				let domNode = tNode.node;
-				let v = tNode.pos.add(this._transitionDir.mul(this._transitionSpeed*dt*-1));
+				let windowSize = GetWindowSize();
+				let deltaV = windowSize.div(this._transitionTime).mulv(this._transitionDir).mul(-1*dt);
+				let v = tNode.pos.add(deltaV);
 				tNode.pos = v;
 			}
 
