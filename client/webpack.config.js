@@ -34,6 +34,7 @@ module.exports = {
 		contentBase: './dist',
 		open: true,
 		hot: true,
+		historyApiFallback: true,
 	},
 	plugins: [
 		new HtmlWebpackPlugin(),

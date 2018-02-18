@@ -13,7 +13,7 @@ class Main {
 
 	init() {
 		UpdateController.start();
-		let navNode = Array.from(Graph)[0];
+		let navNode = Graph.getFromUrl(document.documentURI);
 		this._view.load(navNode);
 	}
 }

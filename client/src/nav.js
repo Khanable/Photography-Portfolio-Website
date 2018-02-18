@@ -6,6 +6,7 @@ import * as hostHtml from './host.html';
 import './main.css';
 import './host.css';
 import './util.js';
+import 'url-parse';
 
 
 const EntrySelector = '#entry';
@@ -57,8 +58,37 @@ export class NavController {
 		this._transitionDir = null;
 
 		this._init();
-
 		UpdateController.renderSubject.subscribe(this.updateTransition.bind(this));
+		window.onpopstate = (event) => {
+			if ( event.state != undefined ) {
+				let location = event.state;
+				let loadLocation = false;
+
+				if ( !this._transitioning && this._curNode != null) {
+					let e = Array.from(this._curNode.connections).find( e => {
+						let dir = e[0];
+						let node = e[1];
+						return node.location == location;
+					});
+					if ( e != undefined ) {
+						let node = e[1];
+						this._transition(node);
+					}
+					else {
+						loadLocation = true;
+					}
+				}
+				else {
+					loadLocation = true;;
+				}
+
+				if ( loadLocation ) {
+					let node = this._navGraph.get(location);
+					this._init();
+					this.load(node);
+				}
+			}
+		}
 	}
 
 	_loadHTML(htmlStr) {
@@ -73,6 +103,8 @@ export class NavController {
 	}
 
 	_init() {
+		this._transitioning = false;
+		document.body.innerHTML = '';
 		let main = this._loadHTML(mainHtml);
 		this._append(document.body, main);
 		this._entryNode = document.querySelector(EntrySelector);
@@ -80,9 +112,10 @@ export class NavController {
 		this._append(this._entryNode, host);
 	}
 
-	_clickArrow(dir) {
+	_clickArrow(navNode) {
 		if ( !this._transitioning ) {
-			this._transition(dir);
+			this._transition(navNode);
+			this._pushHistory(navNode);
 		}
 	}
 
@@ -95,8 +128,8 @@ export class NavController {
 		return rtn;
 	}
 
-	_initArrows(hostNode, navPoint) {
-		let connections = navPoint.connections;
+	_initArrows(hostNode, navNode) {
+		let connections = navNode.connections;
 		let arrows = this._getArrowNodes(hostNode);
 
 		for( let e of arrows ) {
@@ -109,10 +142,16 @@ export class NavController {
 			else {
 				AppendAttribute(arrowNode, 'class', ' '+ArrowNavClass);
 				arrowNode.innerText = connections.get(arrowDir).arrowText;
-				arrowNode.addEventListener('click', () => this._clickArrow(arrowDir));
+				arrowNode.addEventListener('click', () => this._clickArrow(connections.get(arrowDir)));
 			}
 
 		}
+	}
+
+	_pushHistory(navNode) {
+		//Make a serializable version of nav node if ever store more then just the location stack in history.
+		//DONT pass the navNode itself, this method attempts to do a deep copy, apart from failing to copy the hook functions, it will do a deep copy of the entire connection graph for each individual nav node. will probably end up in a circular recursion error too.
+		window.history.pushState(navNode.location, navNode.arrowText, navNode.url);
 	}
 
 	load(navNode) {
@@ -120,6 +159,7 @@ export class NavController {
 		contentNode.innerHTML = '';
 		this._append(contentNode, this._loadHTML(navNode.viewHtml));
 		this._curNode = navNode;
+		navNode.onLoad();
 		this._initArrows(this._entryNode, navNode);
 	}
 
@@ -130,34 +170,38 @@ export class NavController {
 		return rtn;
 	}
 
-	_transition(dir) {
-		this._transitioning = true;
+	_transition(navNode) {
+		if ( !this._transitioning ) {
+			this._transitioning = true;
 
-		this._curNode.preTransition(dir);
+			let connection = Array.from(this._curNode.connections).find( e => e[1] == navNode );
+			if ( connection != undefined ) {
+				this._curNode = navNode;
+				navNode.onLoad();
+				this._transitionDir = connection[0];
+				let transitionVector = DirVector[this._transitionDir];
 
-		let connections = this._curNode.connections;
-		if ( connections.has(dir) ) {
-			let navPoint = connections.get(dir);
-			this._curNode = navPoint;
-			this._transitionDir = dir;
-			let transitionVector = DirVector[this._transitionDir];
+				let fromNode = this._createTransitionNode(this._entryNode);
 
-			let fromNode = this._createTransitionNode(this._entryNode);
+				let targetView = this._loadHTML(hostHtml);
+				let contentNode = targetView.querySelector(ContentSelector);
+				this._append(contentNode, this._loadHTML(navNode.viewHtml));
+				this._initArrows(targetView, navNode);
+				let toNode = this._createTransitionNode(targetView);
 
-			let targetView = this._loadHTML(hostHtml);
-			let contentNode = targetView.querySelector(ContentSelector);
-			this._append(contentNode, this._loadHTML(navPoint.viewHtml));
-			this._initArrows(targetView, navPoint);
-			let toNode = this._createTransitionNode(targetView);
+				let windowSize = new Vector2(window.innerWidth, window.innerHeight);
+				let startPos = windowSize.mulv(transitionVector);
 
-			let windowSize = new Vector2(window.innerWidth, window.innerHeight);
-			let startPos = windowSize.mulv(transitionVector);
-
-			this._transitionNodeFrom = new TransitionNode(fromNode, Vector2.Zero);
-			this._transitionNodeTo = new TransitionNode(toNode, startPos);
+				this._transitionNodeFrom = new TransitionNode(fromNode, Vector2.Zero);
+				this._transitionNodeTo = new TransitionNode(toNode, startPos);
+			}
+			else {
+				this._transitioning = false;
+				throw new Error('Cannot transistion to unconnected location from current location');
+			}
 		}
 		else {
-			throw new Error('Cannot transistion to unconnected location from current location');
+			throw new Error('Already Transitioning');
 		}
 	}
 
@@ -214,8 +258,8 @@ export class NavController {
 
 export class NavGraph {
 
-	constructor(rootNavPoint) {
-		this._root = rootNavPoint;
+	constructor(rootNavNode) {
+		this._root = rootNavNode;
 	}
 
 	[Symbol.iterator]() {
@@ -228,9 +272,9 @@ export class NavGraph {
 				if ( this._found.length > 0 ) {
 					let cur = this._found.pop();
 					for( let e of cur.connections ) {
-						let navPoint = e[1];
-						if ( !this._visited.includes(navPoint) ) {
-							this._found.push(navPoint);
+						let navNode = e[1];
+						if ( !this._visited.includes(navNode) ) {
+							this._found.push(navNode);
 						}
 					}
 					this._visited.push(cur);
@@ -248,16 +292,37 @@ export class NavGraph {
 	get(location) {
 		return Array.from(this).find( e => e.location == location );
 	}
+
+	getFromUrl(urlStr) {
+		let rtn = this._root;
+
+		let url = new URL(urlStr);
+		let path = url.pathname;
+		path = path.slice(1);
+
+		let navNode = Array.from(this).find( e => e.url == path );
+		if ( navNode != undefined ) {
+			rtn = navNode;
+		}
+
+		return rtn;
+	}
+
 }
 
-export class NavPoint {
+export class NavNode {
 
-	constructor(location, viewHtml, arrowText) {
+	constructor(location, viewHtml, arrowText, url) {
 		this._location = location;
 		this._connections = new Map();
 		this._viewHtml = viewHtml;
 		this._arrowText = arrowText;
-		this._preTransitionFunc = null;
+		this._onLoadFunc = null;
+		this._url = url;
+	}
+
+	get url() {
+		return this._url;
 	}
 
 	get location() {
@@ -276,14 +341,14 @@ export class NavPoint {
 		return new Map(this._connections);
 	}
 
-	internalSetConnection(dir, navPoint) {
-		this._connections.set(dir, navPoint);
+	internalSetConnection(dir, navNode) {
+		this._connections.set(dir, navNode);
 	}
 	internalDeleteConnection(dir) {
 		this._connections.delete(dir);
 	}
-	setConnection(dir, navPoint) {
-		let targetOld = navPoint.connections.get(InverseDir(dir));
+	setConnection(dir, navNode) {
+		let targetOld = navNode.connections.get(InverseDir(dir));
 		if ( targetOld ) {
 			targetOld.internalDeleteConnection(dir);
 		}
@@ -292,15 +357,15 @@ export class NavPoint {
 			myOld.internalDeleteConnection(InverseDir(dir));
 		}
 
-		this.internalSetConnection(dir, navPoint);
-		navPoint.internalSetConnection(InverseDir(dir), this);
+		this.internalSetConnection(dir, navNode);
+		navNode.internalSetConnection(InverseDir(dir), this);
 	}
-	set preTransitionFunc(v) {
-		this._preTransitionFunc = v;
+	set onLoadFunc(v) {
+		this._onLoadFunc = v;
 	}
-	preTransition(dir) {
-		if ( this._preTransitionFunc ) {
-			this._preTransitionFunc(this, dir);
+	onLoad() {
+		if ( this._onLoadFunc ) {
+			this._onLoadFunc(this);
 		}
 	}
 
