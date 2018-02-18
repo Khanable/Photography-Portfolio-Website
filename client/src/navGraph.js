@@ -1,20 +1,40 @@
-import { NavPoint, Dir } from './view.js';
-import * as index from './index.html';
-import * as about from './about.html';
+import { NavGraph, NavPoint, Dir } from './nav.js';
+import * as AboutHtml from './about.html';
+import * as PhotoViewHtml from './photoView.html';
+import * as IndexHtml from './index.html';
 
-export const ViewLocation = {
+const Location = {
 	Index: 0,
 	About: 1,
-	Categories: 2,
-	Category: 3,
+	Category1: 2,
+	Photo1: 3,
+	Photo2: 3,
 }
 
-export const NavGraph = new Map();
-NavGraph.set(ViewLocation.Index, [new NavPoint(ViewLocation.About, Dir.East), new NavPoint(ViewLocation.Categories, Dir.South)])
-NavGraph.set(ViewLocation.About, [new NavPoint(ViewLocation.Index, Dir.West)])
-NavGraph.set(ViewLocation.Categories, [new NavPoint(ViewLocation.Index, Dir.North)])
+
+const IndexNode = new NavPoint(Location.Index, IndexHtml, 'Index');
+const AboutNode = new NavPoint(Location.About, AboutHtml, 'About');
+const Category1 = new NavPoint(Location.Category1, PhotoViewHtml, 'Category1');
+const Photo1 = new NavPoint(Location.Photo1, PhotoViewHtml, 'Photo1');
+const Photo2 = new NavPoint(Location.Photo2, PhotoViewHtml, 'Photo2');
 
 
-export const Views = new Map();
-Views.set(ViewLocation.Index, index);
-Views.set(ViewLocation.About, about);
+export const Graph = new NavGraph(IndexNode);
+IndexNode.setConnection(Dir.West, AboutNode);
+
+IndexNode.setConnection(Dir.South, Category1);
+Category1.setConnection(Dir.South, Photo1);
+Photo1.setConnection(Dir.East, Photo2);
+
+let updateCategoryPointerFunc = (navNode, dir) => {
+	let connections = navNode.connections;
+	if ( connections.has(dir) ) {
+		let target = connections.get(dir);
+		if ( target != Category1 ) {
+			target.setConnection(Dir.North, Category1);
+		}
+	}
+}
+
+Photo1.preTransitionFunc = updateCategoryPointerFunc;
+Photo2.preTransitionFunc = updateCategoryPointerFunc;
