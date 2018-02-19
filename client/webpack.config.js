@@ -7,7 +7,8 @@ module.exports = {
 	entry: './src/main.js',
 	output: {
 		filename: 'bundle.js',
-		path: path.resolve(__dirname, 'dist')
+		path: path.resolve(__dirname, 'dist'),
+		publicPath = '/',
 	},
 	devtool: 'cheap-module-source-map',
 	module: {
@@ -27,11 +28,10 @@ module.exports = {
 						attrs: [':data-src']
 					}
 				}
-			}
+			},
 		]
 	},
 	devServer: {
-		contentBase: './dist',
 		open: true,
 		hot: true,
 		historyApiFallback: true,

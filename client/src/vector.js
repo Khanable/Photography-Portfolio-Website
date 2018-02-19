@@ -23,6 +23,9 @@ export class Vector2 {
 	div(s) {
 		return new Vector2(this.x/s, this.y/s);
 	}
+	divv(v) {
+		return new Vector2(this.x/v.x, this.y/v.y);
+	}
 }
 
 Vector2.One = new Vector2(1, 1);

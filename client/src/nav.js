@@ -1,6 +1,7 @@
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
 import { AppendAttribute, GetWindowSize } from './util.js';
+import { Subject } from 'rxjs';
 import * as mainHtml from './main.html';
 import * as hostHtml from './host.html';
 import './main.css';
@@ -65,14 +66,11 @@ export class NavController {
 				let loadLocation = false;
 
 				if ( !this._transitioning && this._curNode != null) {
-					let e = Array.from(this._curNode.connections).find( e => {
-						let dir = e[0];
-						let node = e[1];
-						return node.location == location;
-					});
-					if ( e != undefined ) {
-						let node = e[1];
-						this._transition(node);
+					let connection = this._curNode.connections.find( connection => connection.node.location == location );
+					if ( connection != undefined ) {
+						let node = connection.node;
+						let path = this._getShortestPath(node);
+						this._transition(connection.dir, path);
 					}
 					else {
 						loadLocation = true;
@@ -112,10 +110,11 @@ export class NavController {
 		this._append(this._entryNode, host);
 	}
 
-	_clickArrow(navNode) {
+	_clickArrow(dir, navNode) {
 		if ( !this._transitioning ) {
-			this._transition(navNode);
-			this._pushHistory(navNode);
+			let path = this._getShortestPath(navNode);
+			this._transition(dir, path);
+			this._pushHistory(path);
 		}
 	}
 
@@ -129,7 +128,7 @@ export class NavController {
 	}
 
 	_initArrows(hostNode, navNode) {
-		let connections = navNode.connections;
+		let connections = navNode.displayConnections;
 		let arrows = this._getArrowNodes(hostNode);
 
 		for( let e of arrows ) {
@@ -142,16 +141,36 @@ export class NavController {
 			else {
 				AppendAttribute(arrowNode, 'class', ' '+ArrowNavClass);
 				arrowNode.innerText = connections.get(arrowDir).arrowText;
-				arrowNode.addEventListener('click', () => this._clickArrow(connections.get(arrowDir)));
+				arrowNode.addEventListener('click', () => this._clickArrow(arrowDir, connections.get(arrowDir)));
 			}
 
 		}
 	}
 
-	_pushHistory(navNode) {
+	_pushHistory(path) {
 		//Make a serializable version of nav node if ever store more then just the location stack in history.
 		//DONT pass the navNode itself, this method attempts to do a deep copy, apart from failing to copy the hook functions, it will do a deep copy of the entire connection graph for each individual nav node. will probably end up in a circular recursion error too.
-		window.history.pushState(navNode.location, navNode.arrowText, navNode.url);
+		let navNode = path[path.length-1].node;
+		window.history.pushState(navNode.location, navNode.arrowText, this._buildUrlPath(path));
+	}
+
+	_buildUrlPath(path) {
+		//Ignore the root node url tag
+		path = path.slice(1);
+		let urlPath = '/'+path.map( e => e.node.url ).join('/');
+		return urlPath;
+	}
+
+	_getShortestPath(navNode) {
+		return this._navGraph.findPaths(this._navGraph.root, navNode).sort( (a,b) => a.length-b.length )[0];
+	}
+
+	_setDisplayPath(path) {
+		for( let i = 1; i < path.length; i++ ) {
+			let node = path[i-1].node;
+			let connection = path[i];
+			node.setDisplayConnection(connection);
+		}
 	}
 
 	load(navNode) {
@@ -159,8 +178,12 @@ export class NavController {
 		contentNode.innerHTML = '';
 		this._append(contentNode, this._loadHTML(navNode.viewHtml));
 		this._curNode = navNode;
-		navNode.onLoad();
 		this._initArrows(this._entryNode, navNode);
+		let path = this._getShortestPath(navNode);
+		this._setDisplayPath(path);
+		navNode.onLoad(contentNode);
+		window.history.replaceState(navNode.location, navNode.arrowText, this._buildUrlPath(path));
+
 	}
 
 	_createTransitionNode(fromNode) {
@@ -170,24 +193,27 @@ export class NavController {
 		return rtn;
 	}
 
-	_transition(navNode) {
+	_transition(dir, path) {
 		if ( !this._transitioning ) {
 			this._transitioning = true;
 
-			let connection = Array.from(this._curNode.connections).find( e => e[1] == navNode );
+			let targetNode = path[path.length-1].node;
+			let connection = this._curNode.connections.find( e => e.dir == dir && e.node == targetNode );
 			if ( connection != undefined ) {
-				this._curNode = navNode;
-				navNode.onLoad();
-				this._transitionDir = connection[0];
+				this._transitionDir = connection.dir;
 				let transitionVector = DirVector[this._transitionDir];
+				this._curNode = connection.node;
 
 				let fromNode = this._createTransitionNode(this._entryNode);
 
 				let targetView = this._loadHTML(hostHtml);
 				let contentNode = targetView.querySelector(ContentSelector);
-				this._append(contentNode, this._loadHTML(navNode.viewHtml));
-				this._initArrows(targetView, navNode);
+				this._append(contentNode, this._loadHTML(connection.node.viewHtml));
 				let toNode = this._createTransitionNode(targetView);
+				this._initArrows(toNode, connection.node);
+				this._setDisplayPath(path);
+				connection.node.onLoad(contentNode);
+
 
 				let windowSize = new Vector2(window.innerWidth, window.innerHeight);
 				let startPos = windowSize.mulv(transitionVector);
@@ -208,21 +234,6 @@ export class NavController {
 	_isTransitionFinished(dir, pos) {
 		let v = dir < 2 ? pos.x : pos.y
 		return dir % 2 == 0 ? v >= 0 : v <= 0;
-
-		//switch(dir) {
-		//	case Dir.West:
-		//		rtn = pos.x >= 0;
-		//		break;
-		//	case Dir.East:
-		//		rtn = pos.x <= 0;
-		//		break;
-		//	case Dir.South:
-		//		rtn = pos.y >= 0;
-		//		break;
-		//	case Dir.North:
-		//		rtn = pos.y <= 0;
-		//		break;
-		//}
 	}
 
 	updateTransition(dt) {
@@ -271,8 +282,8 @@ export class NavGraph {
 				let rtn = {};
 				if ( this._found.length > 0 ) {
 					let cur = this._found.pop();
-					for( let e of cur.connections ) {
-						let navNode = e[1];
+					for( let connection of cur.connections ) {
+						let navNode = connection.node;
 						if ( !this._visited.includes(navNode) ) {
 							this._found.push(navNode);
 						}
@@ -293,36 +304,109 @@ export class NavGraph {
 		return Array.from(this).find( e => e.location == location );
 	}
 
-	getFromUrl(urlStr) {
-		let rtn = this._root;
+	//This method returns all paths found fromNode -> toNode in the form [FromNode, NavConnection...] to the target
+	findPaths(fromNavNode, toNavNode) {
+		let walkingPaths = [[fromNavNode]];
+		let rtn = [];
 
-		let url = new URL(urlStr);
-		let path = url.pathname;
-		path = path.slice(1);
+		while( walkingPaths.length > 0 ) {
+			let curPath = walkingPaths.pop();
+			let curNode = curPath[curPath.length-1].node;
+			let noRoute = false;
+			while( !noRoute && curNode != toNavNode ) {
+				let connections = curNode.connections.filter( connection => !curPath.includes(connection) );
+				if ( connections.length > 0 ) {
+					for( let i = 1; i < connections.length; i++ ) {
+						let newPath = curPath.slice();
+						newPath.push(connections[i]);
+						walkingPaths.push(newPath);
+					}
+					curPath.push(connections[0]);
+					curNode = connections[0].node;
+				}
+				else {
+					noRoute = true;
+				}
+			}
 
-		let navNode = Array.from(this).find( e => e.url == path );
-		if ( navNode != undefined ) {
-			rtn = navNode;
+			if ( !noRoute ) {
+				rtn.push(curPath);
+			}
 		}
 
 		return rtn;
 	}
 
+	getFromUrl(urlStr) {
+		let rtn = this._root;
+
+		let url = new URL(urlStr);
+		let urlPath = url.pathname.split('/').filter( e => e != '' );
+
+		let foundPath = true;
+		let path = [this._root];
+		for(let stepUrl of urlPath) {
+			let cur = path[path.length-1];
+			let connection = cur.connections.find( connection => connection.node.url == stepUrl);
+			if ( connection != undefined && !path.includes(connection.node) ) {
+				path.push(connection.node);
+			}
+			else {
+				foundPath = false;
+				break;
+			}
+		}
+
+		if ( foundPath ) {
+			rtn = path.pop();
+		}
+
+		return rtn;
+	}
+
+	get root() {
+		return this._root;
+	}
+
+}
+
+export class NavConnection {
+	constructor(dir, navNode) {
+		this._dir = dir;
+		this._node = navNode;
+	}
+	
+	get dir() {
+		return this._dir;
+	}
+
+	get node() {
+		return this._node;
+	}
 }
 
 export class NavNode {
 
 	constructor(location, viewHtml, arrowText, url) {
 		this._location = location;
-		this._connections = new Map();
+		this._connections = [];
+		this._displayConnections = new Map();
 		this._viewHtml = viewHtml;
 		this._arrowText = arrowText;
-		this._onLoadFunc = null;
+		this._onLoadSubject = new Subject();
 		this._url = url;
 	}
 
 	get url() {
 		return this._url;
+	}
+
+	//Helper to make findPaths node or connection.node checks easier
+	get node() {
+		return this;
+	}
+	get dir() {
+		throw new Error('This is a NavNode not a NavConnection');
 	}
 
 	get location() {
@@ -337,36 +421,56 @@ export class NavNode {
 		return this._viewHtml;
 	}
 
+	get displayConnections() {
+		return new Map(this._displayConnections);
+	}
+
+	internalSetDisplayConnection(connection) {
+		if ( this._connections.includes(connection) ) {
+			this._displayConnections.set(connection.dir, connection.node);
+		}
+		else {
+			throw new Error('not connected to nav node on dir');
+		}
+	}
+
+	setDisplayConnection(connection) {
+		let myConnection = connection;
+
+		let navNode = connection.node;
+		let dir = connection.dir;
+		let otherConnection = navNode.connections.find( e => e.dir == InverseDir(dir) && e.node == this );
+
+		this.internalSetDisplayConnection(myConnection);
+		navNode.internalSetDisplayConnection(otherConnection);
+	}
+
 	get connections() {
-		return new Map(this._connections);
+		return Array.from(this._connections);
 	}
 
-	internalSetConnection(dir, navNode) {
-		this._connections.set(dir, navNode);
+	internalAddConnection(dir, navNode) {
+		let connection = new NavConnection(dir, navNode);
+		this._connections.push(connection);
+		this.internalSetDisplayConnection(connection);
 	}
-	internalDeleteConnection(dir) {
-		this._connections.delete(dir);
-	}
-	setConnection(dir, navNode) {
-		let targetOld = navNode.connections.get(InverseDir(dir));
-		if ( targetOld ) {
-			targetOld.internalDeleteConnection(dir);
+	internalRemoveConnection(connection) {
+		if ( this._connections.includes(connection) ) {
+			this._connections.splice(this._connections.indexOf(connection), 1);
 		}
-		let myOld = this._connections.get(dir);
-		if ( myOld ) {
-			myOld.internalDeleteConnection(InverseDir(dir));
+		else {
+			throw new Error('Connection not part of this node');
 		}
-
-		this.internalSetConnection(dir, navNode);
-		navNode.internalSetConnection(InverseDir(dir), this);
 	}
-	set onLoadFunc(v) {
-		this._onLoadFunc = v;
+	addConnection(dir, navNode) {
+		this.internalAddConnection(dir, navNode);
+		navNode.internalAddConnection(InverseDir(dir), this);
 	}
-	onLoad() {
-		if ( this._onLoadFunc ) {
-			this._onLoadFunc(this);
-		}
+	get onLoadSubject() {
+		return this._onLoadSubject;
+	}
+	onLoad(domNode) {
+		this._onLoadSubject.next(this, domNode);
 	}
 
 }
