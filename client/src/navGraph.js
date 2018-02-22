@@ -4,6 +4,8 @@ import * as AboutHtml from './about.html';
 import * as PhotoViewHtml from './photoView.html';
 import * as IndexHtml from './index.html';
 import './photoView.css';
+import { GetWindowSize } from './util.js';
+import './util.js';
 
 const Location = {
 	Index: 0,
@@ -13,19 +15,28 @@ const Location = {
 	Photo2: 4,
 }
 
+const PhotoNameFormat = '{0}_{1}.{2}';
+
+const PhotoClasses = [
+ 2160, 1080, 720, 480
+].sort( (a,b) => b-a );
+
 class PhotoNode extends NavNode {
-	constructor(location, arrowText, url, photoUrl) {
+	constructor(location, arrowText, url, basePhotoUrl, photoFileName, photoExt) {
 		super(location, PhotoViewHtml, arrowText, url);
-		this._photoUrl = photoUrl;
+		this._basePhotoUrl = basePhotoUrl;
+		this._photoFileName = photoFileName;
+		this._photoExt = photoExt;
+
+		this._domMain = null;
 	}
 
-	_load(domNode) {
+	_load() {
 		let img = new Image();
 		img.addEventListener('load', () => {
-			let domMain = domNode.querySelector('#main');
-			domMain.innerHTML = '';
+			this._domMain.innerHTML = '';
 
-			let displayRect = domNode.getBoundingClientRect();
+			let displayRect = this._domMain.getBoundingClientRect();
 			let displaySize = new Vector2(displayRect.width, displayRect.height);
 			let naturalSize = new Vector2(img.naturalWidth, img.naturalHeight);
 			let ratioV = displaySize.divv(naturalSize);
@@ -34,28 +45,46 @@ class PhotoNode extends NavNode {
 
 			img.width = imgSize.x;
 			img.height = imgSize.y;
-			domMain.appendChild(img);
+			this._domMain.appendChild(img);
 		});
-		img.src = this._photoUrl;
+		let windowSize = GetWindowSize();
+		let shortWindowSize = windowSize.x > windowSize.y ? windowSize.y : windowSize.x;
+		let applicableClasses = PhotoClasses.filter( e => e >= shortWindowSize );
+		let photoClass = applicableClasses[applicableClasses.length-1];
+		if ( photoClass == undefined ) {
+			photoClass = PhotoClasses[0];
+		}
+		img.src = this._basePhotoUrl+PhotoNameFormat.format(this._photoFileName, photoClass.toString(), this._photoExt);
+	}
+
+	_setLoading() {
+		this._domMain.innerHTML = '';
+		this._domMain.innerHTML = '<label style="color:white;">Loading</label>';
 	}
 
 	onLoad(domNode) {
 		super.onLoad(domNode);
 
-		let domMain = domNode.querySelector('#main');
-		domMain.innerHTML = '';
-		domMain.innerHTML = '<label style="color:white;">Loading</label>';
+		this._domMain = domNode.querySelector('#main');
 
+		this._setLoading();
 		this._load(domNode);
+	}
+
+	onResize(domNode) {
+		super.onResize(domNode);
+
+		this._setLoading();
+		this._load();
 	}
 
 }
 
 const IndexNode = new NavNode(Location.Index, IndexHtml, 'Index', 'index');
 const AboutNode = new NavNode(Location.About, AboutHtml, 'About', 'about');
-const Category1 = new PhotoNode(Location.Category1, 'Category1', 'category1', '/static/testImage.jpg');
-const Photo1 = new PhotoNode(Location.Photo1, 'Photo1', 'photo1', '/static/testImage.jpg');
-const Photo2 = new PhotoNode(Location.Photo2, 'Photo2', 'photo2', '/static/testImage.jpg');
+const Category1 = new PhotoNode(Location.Category1, 'Category1', 'category1', '/static/', 'testImage', 'jpg');
+const Photo1 = new PhotoNode(Location.Photo1, 'Photo1', 'photo1', '/static/', 'testImage', 'jpg');
+const Photo2 = new PhotoNode(Location.Photo2, 'Photo2', 'photo2', '/static/', 'testImage', 'jpg');
 
 
 export const Graph = new NavGraph(IndexNode);

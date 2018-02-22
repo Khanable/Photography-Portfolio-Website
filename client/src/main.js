@@ -5,7 +5,7 @@ import { GetNavFromUrl } from './util.js';
 import { UpdateController } from './update.js';
 
 //Seconds
-const SlideTransitionTime = 2;
+const SlideTransitionTime = 5;
 
 const SlideTransitionCurve = new TransitionCurve(
 	[new Vector2(0, 0), new Vector2(0.25, 1), new Vector2(1, 0)],

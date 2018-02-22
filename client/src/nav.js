@@ -35,11 +35,13 @@ export class TransitionCurve {
 }
 
 class TransitionNode {
-	constructor(node, incomming, direction, curve) {
+	constructor(node, incomming, direction, curve, navNode, domContentNode) {
 		this._node = node;
 		this._incomming = incomming;
 		this._direction = direction;
 		this._curve = curve;
+		this._navNode = navNode;
+		this._domContentNode = domContentNode;
 
 		this._setTransitionNodeStyle(this._getStartPos());
 	}
@@ -69,6 +71,12 @@ class TransitionNode {
 	get node() {
 		return this._node;
 	}
+	get navNode() {
+		return this._navNode;
+	}
+	get domContentNode() {
+		return this._domContentNode;
+	}
 
 	end() {
 		if ( this._incomming ) {
@@ -81,6 +89,7 @@ export class NavController {
 	constructor(controller, navGraph, transitionTime, transitionCurve) {
 		this._navGraph = navGraph;
 		this._curNode = null;
+		this._curNodeDomContent = null;
 		this._parser = new DOMParser();
 		this._transitionTime = transitionTime;
 		this._transitionCurve = transitionCurve;
@@ -120,6 +129,19 @@ export class NavController {
 				}
 			}
 		}
+
+		window.addEventListener('resize', () => { 
+			if ( !this._transitioning && this._curNode != null ) {
+				this._curNode.onResize(this._curNodeDomContent);
+			}
+			else {
+				let transitionNodes = this._getTransitionNodeCollection();
+				for(let tNode of transitionNodes) {
+					tNode.navNode.onResize(tNode.domContentNode);
+				}
+			}
+		});
+		
 	}
 
 	_loadHTML(htmlStr) {
@@ -207,10 +229,14 @@ export class NavController {
 	}
 
 	load(navNode) {
+		if ( this._curNode != null ) {
+			this._curNode.onUnload();
+		}
 		let contentNode = this._entryNode.querySelector(ContentSelector);
 		contentNode.innerHTML = '';
 		this._append(contentNode, this._loadHTML(navNode.viewHtml));
 		this._curNode = navNode;
+		this._curNodeDomContent = contentNode;
 		navNode.onLoad(contentNode);
 		this._initArrows(this._entryNode, navNode);
 		let path = this._getShortestPath(navNode);
@@ -233,20 +259,24 @@ export class NavController {
 			let targetNode = path[path.length-1].node;
 			let connection = this._curNode.connections.find( e => e.dir == dir && e.node == targetNode );
 			if ( connection != undefined ) {
-				this._curNode = connection.node;
+				let fromNavNode = this._curNode;
+				let fromContentDomNode = this._curNodeDomContent;
+				fromNavNode.onUnload();
 
 				let fromNode = this._createTransitionNode(this._entryNode);
 
 				let targetView = this._loadHTML(hostHtml);
 				let contentNode = targetView.querySelector(ContentSelector);
+				this._curNode = connection.node;
+				this._curNodeDomContent = contentNode;
 				this._append(contentNode, this._loadHTML(connection.node.viewHtml));
 				let toNode = this._createTransitionNode(targetView);
 				connection.node.onLoad(contentNode);
 				this._initArrows(toNode, connection.node);
 				this._setDisplayPath(path);
 
-				this._transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve);
-				this._transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve);
+				this._transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode);
+				this._transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, contentNode);
 				this._transitionT = 0;
 			}
 			else {
@@ -264,6 +294,10 @@ export class NavController {
 	//	return dir % 2 == 0 ? v >= 0 : v <= 0;
 	//}
 
+	_getTransitionNodeCollection() {
+		return [this._transitionNodeFrom, this._transitionNodeTo];
+	}
+
 	updateTransition(dt) {
 		if ( this._transitioning ) {
 			let windowSize = GetWindowSize();
@@ -275,7 +309,7 @@ export class NavController {
 				this._endTransition();
 			}
 			else {
-				let transitionNodes = [this._transitionNodeFrom, this._transitionNodeTo];
+				let transitionNodes = this._getTransitionNodeCollection();
 				for(let tNode of transitionNodes) {
 					tNode.interpolate(this._transitionT);
 				}
@@ -423,6 +457,8 @@ export class NavNode {
 		this._viewHtml = viewHtml;
 		this._arrowText = arrowText;
 		this._onLoadSubject = new Subject();
+		this._onUnloadSubject = new Subject();
+		this._onResizeSubject = new Subject();
 		this._url = url;
 	}
 
@@ -498,8 +534,20 @@ export class NavNode {
 	get onLoadSubject() {
 		return this._onLoadSubject;
 	}
+	get onUnloadSubject() {
+		return this._onUnloadSubject;
+	}
+	get onResizeSubject() {
+		return this._onResizeSubject;
+	}
 	onLoad(domNode) {
 		this._onLoadSubject.next(this, domNode);
+	}
+	onUnload(domNode) {
+		this._onLoadSubject.next(this, domNode);
+	}
+	onResize(domNode) {
+		this._onResizeSubject.next(this, domNode);
 	}
 
 }
