@@ -26,6 +26,31 @@ export class Vector2 {
 	divv(v) {
 		return new Vector2(this.x/v.x, this.y/v.y);
 	}
+	[Symbol.iterator]() {
+		let self = this;
+		return Object.seal({
+			_index: 0,
+			next: function() {
+				let rtn = {
+					done: true,
+				};
+				switch(this._index) {
+					case 0:
+						rtn.value = self.x;
+						break;
+					case 1:
+						rtn.value = self.y;
+						break;
+				}
+				this._index++;
+
+				if ( rtn.value != undefined ) {
+					rtn.done = false;
+				}
+				return Object.freeze(rtn);
+			},
+		});
+	}
 }
 
 Vector2.One = new Vector2(1, 1);

@@ -16,30 +16,37 @@ const Location = {
 class PhotoNode extends NavNode {
 	constructor(location, arrowText, url, photoUrl) {
 		super(location, PhotoViewHtml, arrowText, url);
-		this._img = null;
 		this._photoUrl = photoUrl;
+	}
+
+	_load(domNode) {
+		let img = new Image();
+		img.addEventListener('load', () => {
+			let domMain = domNode.querySelector('#main');
+			domMain.innerHTML = '';
+
+			let displayRect = domNode.getBoundingClientRect();
+			let displaySize = new Vector2(displayRect.width, displayRect.height);
+			let naturalSize = new Vector2(img.naturalWidth, img.naturalHeight);
+			let ratioV = displaySize.divv(naturalSize);
+			let ratio = img.width > img.height ? ratioV.x : ratioV.y;
+			let imgSize = naturalSize.mul(ratio);
+
+			img.width = imgSize.x;
+			img.height = imgSize.y;
+			domMain.appendChild(img);
+		});
+		img.src = this._photoUrl;
 	}
 
 	onLoad(domNode) {
 		super.onLoad(domNode);
 
-		if ( this._img == null ) {
-			this._img = new Image()
-			this._img.src = this._photoUrl;
-		}
-
 		let domMain = domNode.querySelector('#main');
+		domMain.innerHTML = '';
+		domMain.innerHTML = '<label style="color:white;">Loading</label>';
 
-		let displayRect = domNode.getBoundingClientRect();
-		let displaySize = new Vector2(displayRect.width, displayRect.height);
-		let imgSize = new Vector2(this._img.width, this._img.height);
-		let ratioV = displaySize.divv(imgSize);
-		let ratio = this._img.width > this._img.height ? ratioV.x : ratioV.y;
-		imgSize = imgSize.mul(ratio);
-
-		this._img.width = imgSize.x;
-		this._img.height = imgSize.y;
-		domMain.appendChild(this._img);
+		this._load(domNode);
 	}
 
 }

@@ -1,4 +1,4 @@
-div, img {
+div, img, label {
 	display: flex;
 }
 

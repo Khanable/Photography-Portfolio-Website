@@ -1,3 +1,4 @@
+import * as CubicHermiteSpline from 'cubic-hermite-spline';
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
 import { AppendAttribute, GetWindowSize } from './util.js';
@@ -22,41 +23,73 @@ const ArrowNavClass = 'arrowNav';
 const TransitionNodeBaseStyle = 'position:absolute;height:100%;width:100%;margin:0px;';
 const TransitionNodePositionFormat = 'top:{0}px;left:{1}px;';
 
-class TransitionNode {
-	constructor(node, pos) {
-		this._node = node;
-		this._pos = pos;
-	}
-	get node() {
-		return this._node;
+export class TransitionCurve {
+	constructor(points, tangents) {
+		this._points = points.map( e => Array.from(e) );
+		this._tangents = tangents.map ( e => Array.from(e) );
 	}
 
+	interpolate(t) {
+		return CubicHermiteSpline(t, this._points, this._tangents);
+	}
+}
+
+class TransitionNode {
+	constructor(node, incomming, direction, curve) {
+		this._node = node;
+		this._incomming = incomming;
+		this._direction = direction;
+		this._curve = curve;
+
+		this._setTransitionNodeStyle(this._getStartPos());
+	}
+
+	_getStartPos() {
+		let windowSize = GetWindowSize();
+		return this._incomming ? windowSize.mulv(this._getTransitionVector()) : Vector2.Zero;
+	}
+
+	_getTransitionVector() {
+		return DirVector[this._direction];
+	}
 	_setTransitionNodeStyle(pos) {
 		let style = TransitionNodeBaseStyle+TransitionNodePositionFormat.format(pos.y, pos.x);
 		this._node.setAttribute('style', style);
 	}
 
-	set pos(v) {
-		this._pos = v;
-		this._setTransitionNodeStyle(v);
+	interpolate(t) {
+		let startPos = this._getStartPos();
+		let windowSize = GetWindowSize();
+		let transitionVector = this._getTransitionVector();
+		let v = this._curve.interpolate(t)[0];
+		let pos = startPos.add( windowSize.mul(-v).mulv(transitionVector) );
+		this._setTransitionNodeStyle(pos);
 	}
-	get pos() {
-		return this._pos;
+
+	get node() {
+		return this._node;
+	}
+
+	end() {
+		if ( this._incomming ) {
+			this._setTransitionNodeStyle(Vector2.Zero);
+		}
 	}
 }
 
 export class NavController {
-	constructor(controller, navGraph, transitionTime) {
+	constructor(controller, navGraph, transitionTime, transitionCurve) {
 		this._navGraph = navGraph;
 		this._curNode = null;
 		this._parser = new DOMParser();
 		this._transitionTime = transitionTime;
+		this._transitionCurve = transitionCurve;
 		this._entryNode = null;
 
 		this._transitioning = false;
 		this._transitionNodeFrom = null;
 		this._transitionNodeTo = null;
-		this._transitionDir = null;
+		this._transitionT = 0;
 
 		this._init();
 		UpdateController.renderSubject.subscribe(this.updateTransition.bind(this));
@@ -178,10 +211,10 @@ export class NavController {
 		contentNode.innerHTML = '';
 		this._append(contentNode, this._loadHTML(navNode.viewHtml));
 		this._curNode = navNode;
+		navNode.onLoad(contentNode);
 		this._initArrows(this._entryNode, navNode);
 		let path = this._getShortestPath(navNode);
 		this._setDisplayPath(path);
-		navNode.onLoad(contentNode);
 		window.history.replaceState(navNode.location, navNode.arrowText, this._buildUrlPath(path));
 
 	}
@@ -200,8 +233,6 @@ export class NavController {
 			let targetNode = path[path.length-1].node;
 			let connection = this._curNode.connections.find( e => e.dir == dir && e.node == targetNode );
 			if ( connection != undefined ) {
-				this._transitionDir = connection.dir;
-				let transitionVector = DirVector[this._transitionDir];
 				this._curNode = connection.node;
 
 				let fromNode = this._createTransitionNode(this._entryNode);
@@ -210,16 +241,13 @@ export class NavController {
 				let contentNode = targetView.querySelector(ContentSelector);
 				this._append(contentNode, this._loadHTML(connection.node.viewHtml));
 				let toNode = this._createTransitionNode(targetView);
+				connection.node.onLoad(contentNode);
 				this._initArrows(toNode, connection.node);
 				this._setDisplayPath(path);
-				connection.node.onLoad(contentNode);
 
-
-				let windowSize = new Vector2(window.innerWidth, window.innerHeight);
-				let startPos = windowSize.mulv(transitionVector);
-
-				this._transitionNodeFrom = new TransitionNode(fromNode, Vector2.Zero);
-				this._transitionNodeTo = new TransitionNode(toNode, startPos);
+				this._transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve);
+				this._transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve);
+				this._transitionT = 0;
 			}
 			else {
 				this._transitioning = false;
@@ -231,35 +259,36 @@ export class NavController {
 		}
 	}
 
-	_isTransitionFinished(dir, pos) {
-		let v = dir < 2 ? pos.x : pos.y
-		return dir % 2 == 0 ? v >= 0 : v <= 0;
-	}
+	//_isTransitionFinished(dir, pos) {
+	//	let v = dir < 2 ? pos.x : pos.y
+	//	return dir % 2 == 0 ? v >= 0 : v <= 0;
+	//}
 
 	updateTransition(dt) {
 		if ( this._transitioning ) {
-			let transitionNodes = [this._transitionNodeFrom, this._transitionNodeTo];
-			for(let tNode of transitionNodes) {
-				let domNode = tNode.node;
-				let windowSize = GetWindowSize();
-				let transitionVector = DirVector[this._transitionDir];
-				let deltaV = windowSize.div(this._transitionTime).mulv(transitionVector).mul(-1*dt);
-				let v = tNode.pos.add(deltaV);
-				tNode.pos = v;
-			}
-
-			if ( this._isTransitionFinished(this._transitionDir, this._transitionNodeTo.pos) ) {
+			let windowSize = GetWindowSize();
+			let transitionDT = windowSize.mul(this._transitionTime).mul(dt);
+			transitionDT = transitionDT.x != 0 ? transitionDT.x : transitionDT.y;
+			transitionDT = 1/transitionDT;
+			this._transitionT += transitionDT;
+			if ( this._transitionT >= 1 ) {
 				this._endTransition();
 			}
-
+			else {
+				let transitionNodes = [this._transitionNodeFrom, this._transitionNodeTo];
+				for(let tNode of transitionNodes) {
+					tNode.interpolate(this._transitionT);
+				}
+			}
 		}
 	}
 
 		_endTransition() {
 			this._transitioning = false;
 
-			this._append(this._entryNode, this._transitionNodeTo.node);
+			this._transitionNodeTo.end();
 
+			this._append(this._entryNode, this._transitionNodeTo.node);
 			this._entryNode.removeChild(this._transitionNodeFrom.node);
 			this._entryNode.removeChild(this._transitionNodeTo.node);
 			this._transitionNodeFrom = null;
