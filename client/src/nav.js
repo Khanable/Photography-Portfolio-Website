@@ -301,9 +301,7 @@ export class NavController {
 	updateTransition(dt) {
 		if ( this._transitioning ) {
 			let windowSize = GetWindowSize();
-			let transitionDT = windowSize.mul(this._transitionTime).mul(dt);
-			transitionDT = transitionDT.x != 0 ? transitionDT.x : transitionDT.y;
-			transitionDT = 1/transitionDT;
+			let transitionDT = dt/this._transitionTime;
 			this._transitionT += transitionDT;
 			if ( this._transitionT >= 1 ) {
 				this._endTransition();
@@ -402,7 +400,6 @@ export class NavGraph {
 
 	getFromUrl(urlStr) {
 		let rtn = this._root;
-
 		let url = new URL(urlStr);
 		let urlPath = url.pathname.split('/').filter( e => e != '' );
 

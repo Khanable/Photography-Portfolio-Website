@@ -12,6 +12,7 @@
 		"clean-webpack-plugin": "latest",
 		"rxjs": "latest",
 		"html-loader": "latest",
-		"cubic-hermite-spline": "latest"
+		"cubic-hermite-spline": "latest",
+		"three": "latest"
 	}
 }

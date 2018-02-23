@@ -1,20 +1,19 @@
 body {
 	position: absolute;
 	margin: 0px;
+	overflow: hidden;
+}
+
+#entry, #background, body {
 	height: 100%;
 	width: 100%;
-	overflow: hidden;
 }
 
 #entry {
 	position: absolute;
-	height: 100%;
-	width: 100%;
 }
 
 #background {
 	position: absolute;
-	height: 100%;
-	width: 100%;
 	z-index: -1;
 }

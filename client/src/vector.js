@@ -51,6 +51,10 @@ export class Vector2 {
 			},
 		});
 	}
+
+	pow(s) {
+		return new Vector2(Math.pow(this.x, 2), Math.pow(this.y, 2));
+	}
 }
 
 Vector2.One = new Vector2(1, 1);

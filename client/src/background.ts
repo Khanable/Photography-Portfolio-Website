@@ -1,19 +1,9 @@
-import { ElementRef } from '@angular/core';
-
 //remove?
 //const wrap = function(v, s, e) {
 //	let diffRange = e-s;
 //	let vRange = Math.abs(v-s);
 //	return (vRange%diffRange)+s;
 //}
-
-const clamp = function(v, min, max) {
-	return Math.max(min, Math.min(max, v));
-}
-
-const lerp = function(t, s, e) {
-	return s+t*(e-s);
-}
 
 const lerpParabola = function(t, s, e) {
 	let diff = e-s;
