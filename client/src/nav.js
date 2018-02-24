@@ -86,7 +86,7 @@ class TransitionNode {
 }
 
 export class NavController {
-	constructor(controller, navGraph, transitionTime, transitionCurve) {
+	constructor(navGraph, transitionTime, transitionCurve) {
 		this._navGraph = navGraph;
 		this._curNode = null;
 		this._curNodeDomContent = null;

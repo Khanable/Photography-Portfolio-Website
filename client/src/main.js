@@ -3,6 +3,7 @@ import { Graph } from './navGraph.js';
 import { NavController, TransitionCurve } from './nav.js';
 import { GetNavFromUrl } from './util.js';
 import { UpdateController } from './update.js';
+import { Background } from './background.js';
 
 //Seconds
 const SlideTransitionTime = 1;
@@ -14,7 +15,8 @@ const SlideTransitionCurve = new TransitionCurve(
 
 class Main {
 	constructor() {
-		this._view = new NavController(this, Graph, SlideTransitionTime, SlideTransitionCurve);
+		this._view = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve);
+		this._background = new Background(document.querySelector('#background'));
 	}
 
 	init() {
