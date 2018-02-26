@@ -19,3 +19,7 @@ export const AppendAttribute = function(node, attr, value) {
 export const GetWindowSize = function() {
 	return new Vector2(window.innerWidth, window.innerHeight);
 }
+
+export const RandomRange = function(s, e) {
+	return s+Math.random()*e;
+}
