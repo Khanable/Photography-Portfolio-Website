@@ -15,17 +15,21 @@ const SlideTransitionCurve = new TransitionCurve(
 
 class Main {
 	constructor() {
-		this._view = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve);
-		this._background = new Background(document.querySelector('#background'));
+		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve);
+		this._background = new Background(document.querySelector('#background'), this._nav);
 	}
 
 	init() {
 		UpdateController.start();
 		let navNode = Graph.getFromUrl(document.URL);
-		this._view.load(navNode);
+		this._nav.load(navNode);
+	}
+
+	get navController() {
+		return this._nav;
 	}
 }
 
 
-const Controller = new Main();
+export const Controller = new Main();
 window.addEventListener('load', Controller.init.bind(Controller));

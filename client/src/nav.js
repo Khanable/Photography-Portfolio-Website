@@ -1,7 +1,7 @@
 import * as CubicHermiteSpline from 'cubic-hermite-spline';
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
-import { AppendAttribute, GetWindowSize } from './util.js';
+import { AppendAttribute, GetElementSize } from './util.js';
 import { Subject } from 'rxjs';
 import * as mainHtml from './main.html';
 import * as hostHtml from './host.html';
@@ -35,19 +35,20 @@ export class TransitionCurve {
 }
 
 class TransitionNode {
-	constructor(node, incomming, direction, curve, navNode, domContentNode) {
+	constructor(node, incomming, direction, curve, navNode, domContentNode, entryDomNode) {
 		this._node = node;
 		this._incomming = incomming;
 		this._direction = direction;
 		this._curve = curve;
 		this._navNode = navNode;
 		this._domContentNode = domContentNode;
+		this._entryDomNode = entryDomNode;
 
 		this._setTransitionNodeStyle(this._getStartPos());
 	}
 
 	_getStartPos() {
-		let windowSize = GetWindowSize();
+		let windowSize = GetElementSize(this._entryDomNode);
 		return this._incomming ? windowSize.mulv(this._getTransitionVector()) : Vector2.Zero;
 	}
 
@@ -61,7 +62,7 @@ class TransitionNode {
 
 	interpolate(t) {
 		let startPos = this._getStartPos();
-		let windowSize = GetWindowSize();
+		let windowSize = GetElementSize(document.body);
 		let transitionVector = this._getTransitionVector();
 		let v = this._curve.interpolate(t)[0];
 		let pos = startPos.add( windowSize.mul(-v).mulv(transitionVector) );
@@ -93,12 +94,15 @@ export class NavController {
 		this._parser = new DOMParser();
 		this._transitionTime = transitionTime;
 		this._transitionCurve = transitionCurve;
-		this._entryNode = null;
+		this._entryDomNode = null;
 
 		this._transitioning = false;
 		this._transitionNodeFrom = null;
 		this._transitionNodeTo = null;
 		this._transitionT = 0;
+
+		this._transitioningSubject = new Subject();
+		this._stoppedTransitioningSubject = new Subject();
 
 		this._init();
 		UpdateController.renderSubject.subscribe(this.updateTransition.bind(this));
@@ -155,14 +159,21 @@ export class NavController {
 		}
 	}
 
+	get transitioning() {
+		return this._transitioningSubject;
+	}
+	get stoppedTransitioning() {
+		return this._stoppedTransitioningSubject;
+	}
+
 	_init() {
 		this._transitioning = false;
 		document.body.innerHTML = '';
 		let main = this._loadHTML(mainHtml);
 		this._append(document.body, main);
-		this._entryNode = document.querySelector(EntrySelector);
+		this._entryDomNode = document.querySelector(EntrySelector);
 		let host = this._loadHTML(hostHtml);
-		this._append(this._entryNode, host);
+		this._append(this._entryDomNode, host);
 	}
 
 	_clickArrow(dir, navNode) {
@@ -196,7 +207,7 @@ export class NavController {
 			else {
 				AppendAttribute(arrowNode, 'class', ' '+ArrowNavClass);
 				arrowNode.innerText = connections.get(arrowDir).arrowText;
-				arrowNode.addEventListener('click', () => this._clickArrow(arrowDir, connections.get(arrowDir)));
+				arrowNode.addEventListener('click', () => this._clickArrow(arrowDir, connections.get(arrowDir).node));
 			}
 
 		}
@@ -206,7 +217,7 @@ export class NavController {
 		//Make a serializable version of nav node if ever store more then just the location stack in history.
 		//DONT pass the navNode itself, this method attempts to do a deep copy, apart from failing to copy the hook functions, it will do a deep copy of the entire connection graph for each individual nav node. will probably end up in a circular recursion error too.
 		let navNode = path[path.length-1].node;
-		window.history.pushState(navNode.location, navNode.arrowText, this._buildUrlPath(path));
+		window.history.pushState(navNode.location, navNode.location.toString(), this._buildUrlPath(path));
 	}
 
 	_buildUrlPath(path) {
@@ -232,29 +243,31 @@ export class NavController {
 		if ( this._curNode != null ) {
 			this._curNode.onUnload();
 		}
-		let contentNode = this._entryNode.querySelector(ContentSelector);
+		let contentNode = this._entryDomNode.querySelector(ContentSelector);
 		contentNode.innerHTML = '';
 		this._append(contentNode, this._loadHTML(navNode.viewHtml));
 		this._curNode = navNode;
 		this._curNodeDomContent = contentNode;
 		navNode.onLoad(contentNode);
-		this._initArrows(this._entryNode, navNode);
+		this._initArrows(this._entryDomNode, navNode);
 		let path = this._getShortestPath(navNode);
 		this._setDisplayPath(path);
-		window.history.replaceState(navNode.location, navNode.arrowText, this._buildUrlPath(path));
+		window.history.replaceState(navNode.location, navNode.location.toString(), this._buildUrlPath(path));
+		this._stoppedTransitioningSubject.next();
 
 	}
 
 	_createTransitionNode(fromNode) {
 		let rtn = document.createElement('div');
 		this._append(rtn, fromNode);
-		this._entryNode.appendChild(rtn);
+		this._entryDomNode.appendChild(rtn);
 		return rtn;
 	}
 
 	_transition(dir, path) {
 		if ( !this._transitioning ) {
 			this._transitioning = true;
+			this._transitioningSubject.next();
 
 			let targetNode = path[path.length-1].node;
 			let connection = this._curNode.connections.find( e => e.dir == dir && e.node == targetNode );
@@ -263,7 +276,7 @@ export class NavController {
 				let fromContentDomNode = this._curNodeDomContent;
 				fromNavNode.onUnload();
 
-				let fromNode = this._createTransitionNode(this._entryNode);
+				let fromNode = this._createTransitionNode(this._entryDomNode);
 
 				let targetView = this._loadHTML(hostHtml);
 				let contentNode = targetView.querySelector(ContentSelector);
@@ -275,8 +288,8 @@ export class NavController {
 				this._initArrows(toNode, connection.node);
 				this._setDisplayPath(path);
 
-				this._transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode);
-				this._transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, contentNode);
+				this._transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode, this._entryDomNode);
+				this._transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, contentNode, this._entryDomNode);
 				this._transitionT = 0;
 			}
 			else {
@@ -289,18 +302,13 @@ export class NavController {
 		}
 	}
 
-	//_isTransitionFinished(dir, pos) {
-	//	let v = dir < 2 ? pos.x : pos.y
-	//	return dir % 2 == 0 ? v >= 0 : v <= 0;
-	//}
-
 	_getTransitionNodeCollection() {
 		return [this._transitionNodeFrom, this._transitionNodeTo];
 	}
 
 	updateTransition(dt) {
 		if ( this._transitioning ) {
-			let windowSize = GetWindowSize();
+			let windowSize = GetElementSize(document.body);
 			let transitionDT = dt/this._transitionTime;
 			this._transitionT += transitionDT;
 			if ( this._transitionT >= 1 ) {
@@ -317,12 +325,13 @@ export class NavController {
 
 		_endTransition() {
 			this._transitioning = false;
+			this._stoppedTransitioningSubject.next();
 
 			this._transitionNodeTo.end();
 
-			this._append(this._entryNode, this._transitionNodeTo.node);
-			this._entryNode.removeChild(this._transitionNodeFrom.node);
-			this._entryNode.removeChild(this._transitionNodeTo.node);
+			this._append(this._entryDomNode, this._transitionNodeTo.node);
+			this._entryDomNode.removeChild(this._transitionNodeFrom.node);
+			this._entryDomNode.removeChild(this._transitionNodeTo.node);
 			this._transitionNodeFrom = null;
 			this._transitionNodeTo = null;
 		}
@@ -431,9 +440,10 @@ export class NavGraph {
 }
 
 export class NavConnection {
-	constructor(dir, navNode) {
+	constructor(dir, navNode, arrowText) {
 		this._dir = dir;
 		this._node = navNode;
+		this._arrowText = arrowText;
 	}
 	
 	get dir() {
@@ -443,16 +453,19 @@ export class NavConnection {
 	get node() {
 		return this._node;
 	}
+
+	get arrowText() {
+		return this._arrowText;
+	}
 }
 
 export class NavNode {
 
-	constructor(location, viewHtml, arrowText, url) {
+	constructor(location, viewHtml, url) {
 		this._location = location;
 		this._connections = [];
 		this._displayConnections = new Map();
 		this._viewHtml = viewHtml;
-		this._arrowText = arrowText;
 		this._onLoadSubject = new Subject();
 		this._onUnloadSubject = new Subject();
 		this._onResizeSubject = new Subject();
@@ -475,10 +488,6 @@ export class NavNode {
 		return this._location;
 	}
 
-	get arrowText() {
-		return this._arrowText;
-	}
-
 	get viewHtml() {
 		return this._viewHtml;
 	}
@@ -489,7 +498,7 @@ export class NavNode {
 
 	internalSetDisplayConnection(connection) {
 		if ( this._connections.includes(connection) ) {
-			this._displayConnections.set(connection.dir, connection.node);
+			this._displayConnections.set(connection.dir, connection);
 		}
 		else {
 			throw new Error('not connected to nav node on dir');
@@ -511,8 +520,8 @@ export class NavNode {
 		return Array.from(this._connections);
 	}
 
-	internalAddConnection(dir, navNode) {
-		let connection = new NavConnection(dir, navNode);
+	internalAddConnection(dir, navNode, arrowText) {
+		let connection = new NavConnection(dir, navNode, arrowText);
 		this._connections.push(connection);
 		this.internalSetDisplayConnection(connection);
 	}
@@ -524,9 +533,9 @@ export class NavNode {
 			throw new Error('Connection not part of this node');
 		}
 	}
-	addConnection(dir, navNode) {
-		this.internalAddConnection(dir, navNode);
-		navNode.internalAddConnection(InverseDir(dir), this);
+	addConnection(dir, navNode, myArrowText, otherArrowText) {
+		this.internalAddConnection(dir, navNode, myArrowText);
+		navNode.internalAddConnection(InverseDir(dir), this, otherArrowText);
 	}
 	get onLoadSubject() {
 		return this._onLoadSubject;
