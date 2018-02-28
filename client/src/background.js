@@ -40,14 +40,14 @@ const Settings = {
 
 
 export class Background extends GLBase {
-	constructor(rootDom, navController) {
+	constructor(navController) {
 		let uniforms = {
 			lightColor: { value: Settings.lightColor },
 			focalLength: { value: Settings.focalLength },
 			fallOff: { value: Settings.fallOff },
 		};
 
-		super(rootDom, uniforms, Vertex, Fragment);
+		super(uniforms, Vertex, Fragment);
 		this._t = 0;
 		this._tFlicker = 0;
 		this._nFlickerTime = 0;

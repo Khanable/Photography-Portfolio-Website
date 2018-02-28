@@ -3,20 +3,22 @@ import * as PhotoViewHtml from './photoView.html';
 import { Vector2 } from './vector.js';
 import './photoView.css';
 import { ImageGL, Resize, GetPhotoClassUrl } from './image.js';
-import { Controller } from './main.js';
+import { Controller } from './main.js'
 
 export class PhotoNode extends NavNode {
 	constructor(location, url, photoUrl) {
 		super(location, PhotoViewHtml, url);
 		this._photoUrl = photoUrl;
 		this._subscriptions = [];
-
 		this._domMain = null;
+		this._imageGL = null;
 	}
 
 	_loadGL() {
-		this._img = new ImageGL(this._domMain, Controller.navController, GetPhotoClassUrl(this._domMain, this._photoUrl));
-		this._subscriptions.push(this._img.loaded.subscribe( () => {
+		this._imageGL = Controller.freeImageGL;
+		this._imageGL.setParent(this._domMain);
+		this._imageGL.url = GetPhotoClassUrl(this._domMain, this._photoUrl);
+		this._subscriptions.push(this._imageGL.loaded.subscribe( () => {
 		}));
 	}
 
@@ -59,8 +61,8 @@ export class PhotoNode extends NavNode {
 
 	onUnload(domNode) {
 		super.onUnload(domNode);
-		this._img.delete();
 		this._subscriptions.forEach( e => e.unsubscribe() );
+		this._imageGL.dispose();
 	}
 
 }

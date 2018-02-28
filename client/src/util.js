@@ -24,3 +24,8 @@ export const GetElementSize = function(domElement) {
 export const RandomRange = function(s, e) {
 	return s+Math.random()*e;
 }
+
+export const LoadHtml = function(htmlStr) {
+	let parser = new DOMParser();
+	return parser.parseFromString(htmlStr, 'text/html').body;
+}

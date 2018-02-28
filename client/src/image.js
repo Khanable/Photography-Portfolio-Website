@@ -11,17 +11,24 @@ const PhotoClasses = [
 ].sort( (a,b) => b-a );
 export const GetPhotoClassUrl = function(domElement, url) {
 	let windowSize = GetElementSize(domElement);
-	let shortWindowSize = windowSize.x > windowSize.y ? windowSize.y : windowSize.x;
+	let photoClass = GetMatchingPhotoClassSize(windowSize);
+	return GetPhotoUrl(url, photoClass);
+}
+
+export const GetMatchingPhotoClassSize = function(containerSize) {
+	let shortWindowSize = containerSize.x > containerSize.y ? containerSize.y : containerSize.x;
 	let applicableClasses = PhotoClasses.filter( e => e >= shortWindowSize );
 	let photoClass = applicableClasses[applicableClasses.length-1];
 	if ( photoClass == undefined ) {
 		photoClass = PhotoClasses[0];
 	}
+	return photoClass;
+}
 
+export const GetPhotoUrl = function(url, photoClass) {
 	let urlSplit = url.split('.');
 	return PhotoNameFormat.format(urlSplit[0], photoClass.toString(), urlSplit[1]);
 }
-
 
 const ImageGLVertexShader = `
 varying vec2 texCoord;
@@ -54,16 +61,16 @@ export const Resize = function(containerSize, elementSize) {
 }
 
 export class ImageGL extends GLBase {
-	constructor(rootDom, navController, url) {
+	constructor(navController) {
 		let uniforms = {
 			saturation: { value: Settings.saturation },
 			tex: { value: null },
 		};
 
-		super(rootDom, uniforms, ImageGLVertexShader, ImageGLFragmentShader);
+		super(uniforms, ImageGLVertexShader, ImageGLFragmentShader);
 		this._loaded = false;
+		this._inUse = false;
 		this._loadedSubject = new Subject();
-		this._navController = navController;
 		this._subscriptions = [];
 		this._subscriptions.push(navController.transitioning.subscribe( () => {
 			this._uniforms.saturation.value = Settings.saturation;
@@ -73,7 +80,31 @@ export class ImageGL extends GLBase {
 		}));
 
 		this._loader = new TextureLoader();
-		this._loader.load(url, (texture) => {
+	}
+
+	_update(dt) {
+		if ( this._loaded ) {
+			this._renderer.render(this._scene, this._camera);
+		}
+	}
+
+	get imageSize() {
+		if ( this._loaded ) {
+			let tex = this._uniforms.tex.value.image;
+			return new Vector2(tex.width, tex.height);
+		}
+		else {
+			throw new Error('Image not loaded yet');
+		}
+	}
+
+	markInUse() {
+		this._inUse = true;
+	}
+
+	set url(v) {
+		this._loaded = false;
+		this._loader.load(v, (texture) => {
 			this._uniforms.tex.value = texture;
 			this._loaded = true;
 			this._loadedSubject.next();
@@ -81,10 +112,12 @@ export class ImageGL extends GLBase {
 		});
 	}
 
-	_update(dt) {
-		if ( this._loaded ) {
-			this._renderer.render(this._scene, this._camera);
-		}
+	dispose() {
+		this._inUse = false;
+	}
+
+	get inUse() {
+		return this._inUse;
 	}
 
 	_getElementSize() {
@@ -105,8 +138,8 @@ export class ImageGL extends GLBase {
 		return this._loadedSubject;
 	}
 
-	delete() {
-		this._subscriptions.forEach( e => e.unsubscribe() );
+	get isLoaded() {
+		return this._loaded;
 	}
 
 }

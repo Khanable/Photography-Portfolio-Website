@@ -1,7 +1,7 @@
 import * as CubicHermiteSpline from 'cubic-hermite-spline';
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
-import { AppendAttribute, GetElementSize } from './util.js';
+import { AppendAttribute, GetElementSize, LoadHtml } from './util.js';
 import { Subject } from 'rxjs';
 import * as mainHtml from './main.html';
 import * as hostHtml from './host.html';
@@ -91,7 +91,6 @@ export class NavController {
 		this._navGraph = navGraph;
 		this._curNode = null;
 		this._curNodeDomContent = null;
-		this._parser = new DOMParser();
 		this._transitionTime = transitionTime;
 		this._transitionCurve = transitionCurve;
 		this._entryDomNode = null;
@@ -103,6 +102,9 @@ export class NavController {
 
 		this._transitioningSubject = new Subject();
 		this._stoppedTransitioningSubject = new Subject();
+
+		this._domMain = LoadHtml(mainHtml);
+		this._domHost = LoadHtml(hostHtml);
 
 		this._init();
 		UpdateController.renderSubject.subscribe(this.updateTransition.bind(this));
@@ -148,9 +150,6 @@ export class NavController {
 		
 	}
 
-	_loadHTML(htmlStr) {
-		return this._parser.parseFromString(htmlStr, 'text/html').body;
-	}
 
 	_append(rootNode, domBody) {
 		while(domBody.children.length > 0 ) {
@@ -169,10 +168,10 @@ export class NavController {
 	_init() {
 		this._transitioning = false;
 		document.body.innerHTML = '';
-		let main = this._loadHTML(mainHtml);
+		let main = this._domMain.cloneNode(true);
 		this._append(document.body, main);
 		this._entryDomNode = document.querySelector(EntrySelector);
-		let host = this._loadHTML(hostHtml);
+		let host = this._domHost.cloneNode(true);
 		this._append(this._entryDomNode, host);
 	}
 
@@ -245,7 +244,7 @@ export class NavController {
 		}
 		let contentNode = this._entryDomNode.querySelector(ContentSelector);
 		contentNode.innerHTML = '';
-		this._append(contentNode, this._loadHTML(navNode.viewHtml));
+		this._append(contentNode, navNode.viewDom);
 		this._curNode = navNode;
 		this._curNodeDomContent = contentNode;
 		navNode.onLoad(contentNode);
@@ -278,11 +277,11 @@ export class NavController {
 
 				let fromNode = this._createTransitionNode(this._entryDomNode);
 
-				let targetView = this._loadHTML(hostHtml);
+				let targetView = this._domHost.cloneNode(true);
 				let contentNode = targetView.querySelector(ContentSelector);
 				this._curNode = connection.node;
 				this._curNodeDomContent = contentNode;
-				this._append(contentNode, this._loadHTML(connection.node.viewHtml));
+				this._append(contentNode, connection.node.viewDom);
 				let toNode = this._createTransitionNode(targetView);
 				connection.node.onLoad(contentNode);
 				this._initArrows(toNode, connection.node);
@@ -465,7 +464,7 @@ export class NavNode {
 		this._location = location;
 		this._connections = [];
 		this._displayConnections = new Map();
-		this._viewHtml = viewHtml;
+		this._viewDom = LoadHtml(viewHtml);
 		this._onLoadSubject = new Subject();
 		this._onUnloadSubject = new Subject();
 		this._onResizeSubject = new Subject();
@@ -488,8 +487,8 @@ export class NavNode {
 		return this._location;
 	}
 
-	get viewHtml() {
-		return this._viewHtml;
+	get viewDom() {
+		return this._viewDom.cloneNode(true);
 	}
 
 	get displayConnections() {

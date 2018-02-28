@@ -15,11 +15,12 @@ const Location = {
 	Photo1: 5,
 }
 
+
 const IndexNode = new NavNode(Location.Index, IndexHtml, 'index');
 const AboutNode = new NavNode(Location.About, AboutHtml, 'about');
 const ContactNode = new NavNode(Location.Contact, ContactHtml, 'contact');
 const CVNode = new NavNode(Location.CV, CVHtml, 'cv');
-const Category1 = new CategoryNode(Location.Category1, 'category1', '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg');
+const Category1 = new CategoryNode(Location.Category1, 'category1', 2, '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg');
 const Photo1 = new PhotoNode(Location.Photo1, 'photo1', '/static/testImage.jpg');
 
 

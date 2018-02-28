@@ -1,15 +1,24 @@
-div {
+div, canvas {
 	display: flex;
 }
 
-#category {
+#categoryHost {
+	width: 100%;
+	height: 100%;
+}
+
+#categoryHost, #categoryMain, .cell {
 	align-items: center;
-	justify-items: center;
+	justify-content: center;
+}
+
+#categoryMain {
+	width: 80%;
+	height: 80%;
+	flex-flow: column nowrap;
 }
 
 .row {
 	flex-flow: row nowrap;
-}
-.col {
-	flex-flow: column nowrap;
+	height: auto;
 }
