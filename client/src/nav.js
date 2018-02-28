@@ -3,15 +3,12 @@ import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
 import { AppendAttribute, GetElementSize, LoadHtml } from './util.js';
 import { Subject } from 'rxjs';
-import * as mainHtml from './main.html';
-import * as hostHtml from './host.html';
 import './main.css';
 import './host.css';
 import './util.js';
 import 'url-parse';
 
 
-const EntrySelector = '#entry';
 const ContentSelector = '#content';
 const ArrowNorthSelector = '#arrowN';
 const ArrowSouthSelector = '#arrowS';
@@ -87,7 +84,7 @@ class TransitionNode {
 }
 
 export class NavController {
-	constructor(navGraph, transitionTime, transitionCurve) {
+	constructor(navGraph, transitionTime, transitionCurve, domElement, baseHtml) {
 		this._navGraph = navGraph;
 		this._curNode = null;
 		this._curNodeDomContent = null;
@@ -103,8 +100,8 @@ export class NavController {
 		this._transitioningSubject = new Subject();
 		this._stoppedTransitioningSubject = new Subject();
 
-		this._domMain = LoadHtml(mainHtml);
-		this._domHost = LoadHtml(hostHtml);
+		this._domRoot = domElement;
+		this._domHost = LoadHtml(baseHtml);
 
 		this._init();
 		UpdateController.renderSubject.subscribe(this.updateTransition.bind(this));
@@ -167,12 +164,9 @@ export class NavController {
 
 	_init() {
 		this._transitioning = false;
-		document.body.innerHTML = '';
-		let main = this._domMain.cloneNode(true);
-		this._append(document.body, main);
-		this._entryDomNode = document.querySelector(EntrySelector);
+		this._domRoot.innerHTML = '';
 		let host = this._domHost.cloneNode(true);
-		this._append(this._entryDomNode, host);
+		this._append(this._domRoot, host);
 	}
 
 	_clickArrow(dir, navNode) {

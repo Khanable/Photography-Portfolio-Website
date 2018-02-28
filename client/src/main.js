@@ -3,8 +3,9 @@ import { NavController, TransitionCurve } from './nav.js';
 import { GetNavFromUrl } from './util.js';
 import { UpdateController } from './update.js';
 import { Background } from './background.js';
-import { ImageGL } from './image.js';
 import { Graph } from './navGraph.js'
+import { GLRenderer } from './glRenderer.js'
+import * as hostHtml from './host.html';
 
 //Seconds
 const SlideTransitionTime = 1;
@@ -16,11 +17,9 @@ const SlideTransitionCurve = new TransitionCurve(
 
 export class App {
 	constructor() {
-		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve);
-		this._background = new Background(this._nav);
-		let backgroundDom = document.querySelector('#background');
-		this._background.setParent(backgroundDom);
-		this._imageGLs = [new ImageGL(this._nav), new ImageGL(this._nav)];
+		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve, document.body, hostHtml);
+		this._background = new Background(this._nav, document.body);
+		this._glRenderer = new GLRenderer();
 	}
 
 	init() {
@@ -28,14 +27,11 @@ export class App {
 		let navNode = Graph.getFromUrl(document.URL);
 		this._nav.load(navNode);
 	}
-
 	get navController() {
 		return this._nav;
 	}
-	get freeImageGL() {
-		let n = this._imageGLs.find( e => !e.inUse);
-		n.markInUse();
-		return n;
+	get glRenderer() {
+		return this._glRenderer;
 	}
 }
 
