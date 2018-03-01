@@ -43,7 +43,6 @@ export class PhotoNode extends NavNode {
 
 	onLoad(domNode) {
 		super.onLoad(domNode);
-
 		this._domMain = domNode.querySelector('#main');
 
 		this._setLoading();
@@ -57,8 +56,8 @@ export class PhotoNode extends NavNode {
 		this._loadGL();
 	}
 
-	onUnload(domNode) {
-		super.onUnload(domNode);
+	onUnload() {
+		super.onUnload();
 		this._subscriptions.forEach( e => e.unsubscribe() );
 		this._imageGL.destroy();
 	}

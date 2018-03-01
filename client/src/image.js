@@ -6,6 +6,10 @@ import { Rect } from './rect.js';
 import './util.js'
 import { GetElementSize, GetElementRect } from './util.js';
 import { GL } from './gl.js';
+import { UpdateController } from './update.js';
+import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial } from 'three';
+import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
+import { Vector2 } from './vector.js';
 
 const PhotoNameFormat = '{0}_{1}.{2}';
 const PhotoClasses = [
@@ -68,16 +72,27 @@ export const Resize = function(containerRect, elementSize) {
 	return new Rect(fitPos.x, fitPos.y, fitSize.x, fitSize.y);
 }
 
-export class ImageGL extends GLBase {
+export class ImageGL {
 	constructor(domRoot, navController, url) {
-		let uniforms = {
+		this._domRoot = domRoot;
+		this._loaded = false;
+		this._loadedSubject = new Subject();
+		this._camera = new OrthographicCamera( -0.5, 0.5, 0.5, -0.5, 0, 1 );
+		this._scene = new Scene();
+		this._mesh = null;
+		this._subscriptions = [];
+		this._uniforms = {
 			saturation: { value: Settings.saturation },
 			tex: { value: null },
 		};
-
-		super(domRoot, uniforms, ImageGLVertexShader, ImageGLFragmentShader);
-		this._loaded = false;
-		this._loadedSubject = new Subject();
+		let material = new ShaderMaterial( {
+			uniforms: this._uniforms,
+			vertexShader: ImageGLVertexShader,
+			fragmentShader: ImageGLFragmentShader,
+		} );
+		let geometry = new PlaneBufferGeometry(1, 1);
+		this._mesh = new Mesh(geometry, material);
+		this._scene.add(this._mesh);
 
 		this._subscriptions.push(navController.transitioning.subscribe( () => {
 			this._uniforms.saturation.value = Settings.saturation;
@@ -93,10 +108,11 @@ export class ImageGL extends GLBase {
 			this._loaded = true;
 			this._loadedSubject.next();
 		});
+
+		UpdateController.updateSubject.subscribe( this._update.bind(this) );
 	}
 
 	_update(dt) {
-		super._update(dt);
 		if ( this._loaded && this._domRoot != null) {
 			let containerRect = GetElementRect(this._domRoot)
 			let img = this._uniforms.tex.value.image;
@@ -104,6 +120,14 @@ export class ImageGL extends GLBase {
 			let rect = Resize(containerRect, imgSize);
 			GL.draw(this._scene, this._camera, rect, 100);
 		}
+	}
+
+	destroy() {
+		this._subscriptions.forEach( e => e.unsubscribe() );
+	}
+
+	set domRoot(v) {
+		this._domRoot = v;
 	}
 
 	get imageSize() {

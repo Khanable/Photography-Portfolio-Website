@@ -1,4 +1,7 @@
 import { UpdateController } from './update';
+import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial } from 'three';
+import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
+import { Vector2 } from './vector.js';
 import { Color } from 'three';
 import { RandomRange, GetElementRect } from './util.js';
 import { Vector2 } from './vector.js';
@@ -39,24 +42,70 @@ const Settings = {
 }
 
 
-export class Background extends GLBase {
+export class Background {
 	constructor(navController, domRoot) {
-		let uniforms = {
-			lightColor: { value: Settings.lightColor },
-			focalLength: { value: Settings.focalLength },
-			fallOff: { value: Settings.fallOff },
-		};
 
-		super(domRoot, uniforms, Vertex, Fragment);
+		this._domRoot = domRoot;
+		this._camera = new OrthographicCamera( -1, 1, 1, -1, 0, 1 );
+		this._scene = new Scene();
+		this._mesh = null;
 		this._t = 0;
 		this._tFlicker = 0;
 		this._nFlickerTime = 0;
 		this._nFlickerResolve = 0;
 		this._nFlickerFallOffE = 0;
+		this._uniforms = {
+			lightColor: { value: Settings.lightColor },
+			focalLength: { value: Settings.focalLength },
+			fallOff: { value: Settings.fallOff },
+		};
+		let material = new ShaderMaterial( {
+			uniforms: this._uniforms,
+			vertexShader: Vertex,
+			fragmentShader: Fragment,
+		} );
+		let geometry = new PlaneBufferGeometry(1, 1);
+		this._mesh = new Mesh(geometry, material);
+		this._scene.add(this._mesh);
+
+		UpdateController.updateSubject.subscribe( this._update.bind(this) );
+		window.addEventListener('resize', this._resize.bind(this));
+		this._resize();
+	}
+
+	_resize() {
+		let fustrum = this._getViewFustrum();
+		this._camera.left = fustrum.left;
+		this._camera.right = fustrum.right;
+		this._camera.top = fustrum.top;
+		this._camera.bottom = fustrum.bottom;
+		this._camera.updateProjectionMatrix();
+	}
+
+	_getViewFustrum() {
+		let windowSize = GetWindowSize();
+		let aspect = windowSize.x < windowSize.y ? windowSize.x/windowSize.y : windowSize.y/windowSize.x;
+		aspect/=2;
+		let rtn = {
+			left: -aspect,
+			right: aspect,
+			top: 0.5,
+			bottom: -0.5,
+		}
+
+		if ( windowSize.x > windowSize.y ) {
+			let lTemp = rtn.left;
+			let rTemp = rtn.right;
+			rtn.left = rtn.bottom;
+			rtn.right = rtn.top;
+			rtn.bottom = lTemp;
+			rtn.top = rTemp;
+		}
+
+		return rtn;
 	}
 
 	_update(dt) {
-		super._update(dt);
 		this._t+=dt;
 
 		if ( this._t >= this._nFlickerTime && this._t < this._nFlickerResolve ) {
@@ -86,4 +135,3 @@ export class Background extends GLBase {
 	}
 
 }
-

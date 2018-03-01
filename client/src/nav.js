@@ -101,7 +101,7 @@ export class NavController {
 		this._domHost = LoadHtml(baseHtml);
 
 		this._init();
-		UpdateController.renderSubject.subscribe(this.updateTransition.bind(this));
+		UpdateController.renderSubject.subscribe(this._updateTransition.bind(this));
 		window.onpopstate = (event) => {
 			if ( event.state != undefined ) {
 				let location = event.state;
@@ -273,7 +273,6 @@ export class NavController {
 				this._curNodeDomContent = contentNode;
 				this._append(contentNode, connection.node.viewDom);
 				let toNode = this._createTransitionNode(targetView);
-				connection.node.onLoad(contentNode);
 				this._initArrows(toNode, connection.node);
 				this._setDisplayPath(path);
 
@@ -295,8 +294,14 @@ export class NavController {
 		return [this._transitionNodeFrom, this._transitionNodeTo];
 	}
 
-	updateTransition(dt) {
+	_updateTransition(dt) {
 		if ( this._transitioning ) {
+			//This works, Why does load work then, even when navigating with back/forward!!
+			if ( !this._callOnce ) {
+				this._callOnce = true;
+				this._transitionNodeTo.navNode.onLoad(this._curNodeDomContent);
+			}
+
 			let windowSize = GetElementSize(document.body);
 			let transitionDT = dt/this._transitionTime;
 			this._transitionT += transitionDT;
@@ -539,8 +544,8 @@ export class NavNode {
 	onLoad(domNode) {
 		this._onLoadSubject.next(this, domNode);
 	}
-	onUnload(domNode) {
-		this._onLoadSubject.next(this, domNode);
+	onUnload() {
+		this._onUnloadSubject.next(this);
 	}
 	onResize(domNode) {
 		this._onResizeSubject.next(this, domNode);

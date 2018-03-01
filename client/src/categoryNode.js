@@ -72,14 +72,9 @@ export class CategoryNode extends NavNode {
 		}
 	}
 
-	_loadGL() {
-		this._subscriptions.push(this._img.loaded.subscribe( () => {
-		}));
-	}
-
 	onLoad(domNode) {
 		super.onLoad(domNode);
-
+		console.log(GetElementSize(domNode));
 		this._domMain = domNode.querySelector(SelectorCategory);
 
 		this._setLoading();
@@ -98,8 +93,8 @@ export class CategoryNode extends NavNode {
 		//this._domMain.innerHTML = '<label style="color:white;">Loading</label>';
 	}
 
-	onUnload(domNode) {
-		super.onUnload(domNode);
+	onUnload() {
+		super.onUnload();
 		this._images.forEach( e => e.destroy() );
 		this._subscriptions.forEach( e => e.unsubscribe() );
 	}

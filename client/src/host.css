@@ -1,10 +1,10 @@
-div,label {
-	display: flex;
-}
-
 #mainContainer, #westEastContainer, #content {
 	height: 100%;
 	width: 100%;
+}
+
+#mainContainer, .arrow, #westEastContainer {
+	display: flex;
 }
 
 .arrow {
@@ -34,9 +34,6 @@ div,label {
 
 #westEastContainer {
 	flex-flow: row nowrap;
-}
-
-#content {
 }
 
 #arrowN {
