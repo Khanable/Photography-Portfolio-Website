@@ -15,10 +15,8 @@ export class PhotoNode extends NavNode {
 	}
 
 	_loadGL() {
-		this._imageGL = Controller.freeImageGL;
-		this._imageGL.setParent(this._domMain);
-		this._imageGL.url = GetPhotoClassUrl(this._domMain, this._photoUrl);
-		this._subscriptions.push(this._imageGL.loaded.subscribe( () => {
+		this._imageGL = new ImageGL(this._domMain, Controller.navController, GetPhotoClassUrl(this._domMain, this._photoUrl));
+		this._subscriptions.push(this._imageGL.loadedSubject.subscribe( () => {
 		}));
 	}
 
@@ -62,7 +60,7 @@ export class PhotoNode extends NavNode {
 	onUnload(domNode) {
 		super.onUnload(domNode);
 		this._subscriptions.forEach( e => e.unsubscribe() );
-		this._imageGL.dispose();
+		this._imageGL.destroy();
 	}
 
 }

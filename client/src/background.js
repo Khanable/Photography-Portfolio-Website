@@ -1,8 +1,8 @@
 import { UpdateController } from './update';
 import { Color } from 'three';
-import { RandomRange } from './util.js';
+import { RandomRange, GetElementRect } from './util.js';
 import { Vector2 } from './vector.js';
-import { GLBase } from './gl.js';
+import { GL, GLBase } from './gl.js';
 
 const Vertex = `
 varying vec2 texCoord;
@@ -40,14 +40,14 @@ const Settings = {
 
 
 export class Background extends GLBase {
-	constructor(navController) {
+	constructor(navController, domRoot) {
 		let uniforms = {
 			lightColor: { value: Settings.lightColor },
 			focalLength: { value: Settings.focalLength },
 			fallOff: { value: Settings.fallOff },
 		};
 
-		super(uniforms, Vertex, Fragment);
+		super(domRoot, uniforms, Vertex, Fragment);
 		this._t = 0;
 		this._tFlicker = 0;
 		this._nFlickerTime = 0;
@@ -56,6 +56,7 @@ export class Background extends GLBase {
 	}
 
 	_update(dt) {
+		super._update(dt);
 		this._t+=dt;
 
 		if ( this._t >= this._nFlickerTime && this._t < this._nFlickerResolve ) {
@@ -70,7 +71,7 @@ export class Background extends GLBase {
 			this._uniforms.fallOff.value = Settings.fallOff;
 		}
 
-		this._renderer.render(this._scene, this._camera);
+		GL.draw(this._scene, this._camera, GetElementRect(this._domRoot), 0);
 	}
 
 	_lerpParabola(t, s, e) {

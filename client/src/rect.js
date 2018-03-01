@@ -1,3 +1,5 @@
+import { Vector2 } from './vector.js';
+
 export class Rect {
 	constructor(x, y, w, h) {
 		this._x = x;
@@ -17,5 +19,13 @@ export class Rect {
 	}
 	get h() {
 		return this._h;
+	}
+
+	get size() {
+		return new Vector2(this._w, this._h);
+	}
+
+	get pos() {
+		return new Vector2(this._x, this._y);
 	}
 }

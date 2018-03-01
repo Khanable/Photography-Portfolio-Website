@@ -1,24 +1,22 @@
-div, canvas {
+div {
 	display: flex;
 }
 
-#categoryHost {
-	width: 100%;
-	height: 100%;
-}
-
-#categoryHost, #categoryMain, .cell {
+#categoryMain, .cell {
 	align-items: center;
 	justify-content: center;
 }
 
 #categoryMain {
-	width: 80%;
-	height: 80%;
+	width: 100%;
+	height: 100%;
 	flex-flow: column nowrap;
 }
 
 .row {
 	flex-flow: row nowrap;
-	height: auto;
+}
+.cell {
+	width: 100%;
+	height: 100%;
 }

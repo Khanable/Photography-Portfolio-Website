@@ -1,9 +1,11 @@
 import { GLBase } from './gl.js';
-import { Color, TextureLoader } from 'three';
+import { Color, TextureLoader, LinearFilter } from 'three';
 import { Subject } from 'rxjs';
 import { Vector2 } from './vector';
+import { Rect } from './rect.js';
 import './util.js'
-import { GetElementSize } from './util.js';
+import { GetElementSize, GetElementRect } from './util.js';
+import { GL } from './gl.js';
 
 const PhotoNameFormat = '{0}_{1}.{2}';
 const PhotoClasses = [
@@ -54,24 +56,29 @@ const Settings = {
 
 const FullSaturation = new Color(1, 1, 1);
 
-export const Resize = function(containerSize, elementSize) {
+export const Resize = function(containerRect, elementSize) {
+	let containerSize = containerRect.size;
+	let containerAspect = containerSize.x/containerSize.y;
+	let elementAspect = elementSize.x/elementSize.y;
 	let ratioV = containerSize.divv(elementSize);
-	let ratio = elementSize.x > elementSize.y ? ratioV.x : ratioV.y;
-	return elementSize.mul(ratio);
+	let scaleFactor = containerAspect > elementAspect ? ratioV.y : ratioV.x
+	let fitSize = elementSize.mul(scaleFactor);
+	let fitPos = containerRect.pos;
+	fitPos = new Vector2(fitPos.x+containerSize.x/2-fitSize.x/2, fitPos.y+containerSize.y/2-fitSize.y/2);
+	return new Rect(fitPos.x, fitPos.y, fitSize.x, fitSize.y);
 }
 
 export class ImageGL extends GLBase {
-	constructor(navController) {
+	constructor(domRoot, navController, url) {
 		let uniforms = {
 			saturation: { value: Settings.saturation },
 			tex: { value: null },
 		};
 
-		super(uniforms, ImageGLVertexShader, ImageGLFragmentShader);
+		super(domRoot, uniforms, ImageGLVertexShader, ImageGLFragmentShader);
 		this._loaded = false;
-		this._inUse = false;
 		this._loadedSubject = new Subject();
-		this._subscriptions = [];
+
 		this._subscriptions.push(navController.transitioning.subscribe( () => {
 			this._uniforms.saturation.value = Settings.saturation;
 		}));
@@ -80,11 +87,22 @@ export class ImageGL extends GLBase {
 		}));
 
 		this._loader = new TextureLoader();
+		this._loader.load(url, (texture) => {
+			this._uniforms.tex.value = texture;
+			texture.minFilter = LinearFilter;
+			this._loaded = true;
+			this._loadedSubject.next();
+		});
 	}
 
 	_update(dt) {
-		if ( this._loaded ) {
-			this._renderer.render(this._scene, this._camera);
+		super._update(dt);
+		if ( this._loaded && this._domRoot != null) {
+			let containerRect = GetElementRect(this._domRoot)
+			let img = this._uniforms.tex.value.image;
+			let imgSize = new Vector2(img.width, img.height);
+			let rect = Resize(containerRect, imgSize);
+			GL.draw(this._scene, this._camera, rect, 100);
 		}
 	}
 
@@ -98,43 +116,7 @@ export class ImageGL extends GLBase {
 		}
 	}
 
-	markInUse() {
-		this._inUse = true;
-	}
-
-	set url(v) {
-		this._loaded = false;
-		this._loader.load(v, (texture) => {
-			this._uniforms.tex.value = texture;
-			this._loaded = true;
-			this._loadedSubject.next();
-			this._resize();
-		});
-	}
-
-	dispose() {
-		this._inUse = false;
-	}
-
-	get inUse() {
-		return this._inUse;
-	}
-
-	_getElementSize() {
-		if ( this._loaded ) {
-			let parentDom = this._renderer.domElement.parentNode;
-			let img = this._uniforms.tex.value.image;
-			let displayRect = parentDom.getBoundingClientRect();
-			let displaySize = new Vector2(displayRect.width, displayRect.height);
-			let naturalSize = new Vector2(img.width, img.height);
-			return Resize(displaySize, naturalSize);
-		}
-		else {
-			return Vector2.Zero;
-		}
-	}
-
-	get loaded() {
+	get loadedSubject() {
 		return this._loadedSubject;
 	}
 

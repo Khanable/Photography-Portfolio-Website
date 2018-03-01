@@ -1,4 +1,5 @@
 import { Vector2 } from './vector.js';
+import { Rect } from './rect.js';
 
 if ( !String.prototype.format ) {
 	String.prototype.format = function() {
@@ -19,6 +20,15 @@ export const AppendAttribute = function(node, attr, value) {
 export const GetElementSize = function(domElement) {
 	let bounds = domElement.getBoundingClientRect();
 	return new Vector2(bounds.width, bounds.height);
+}
+
+export const GetWindowSize = function() {
+	return new Vector2(window.innerWidth, window.innerHeight);
+}
+
+export const GetElementRect = function(domElement) {
+	let rect = domElement.getBoundingClientRect();
+	return new Rect(rect.x, rect.y, rect.width, rect.height);
 }
 
 export const RandomRange = function(s, e) {

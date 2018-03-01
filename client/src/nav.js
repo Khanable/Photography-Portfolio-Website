@@ -3,8 +3,6 @@ import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
 import { AppendAttribute, GetElementSize, LoadHtml } from './util.js';
 import { Subject } from 'rxjs';
-import './main.css';
-import './host.css';
 import './util.js';
 import 'url-parse';
 
@@ -39,13 +37,13 @@ class TransitionNode {
 		this._curve = curve;
 		this._navNode = navNode;
 		this._domContentNode = domContentNode;
-		this._entryDomNode = entryDomNode;
+		this._domRoot = entryDomNode;
 
 		this._setTransitionNodeStyle(this._getStartPos());
 	}
 
 	_getStartPos() {
-		let windowSize = GetElementSize(this._entryDomNode);
+		let windowSize = GetElementSize(this._domRoot);
 		return this._incomming ? windowSize.mulv(this._getTransitionVector()) : Vector2.Zero;
 	}
 
@@ -90,7 +88,7 @@ export class NavController {
 		this._curNodeDomContent = null;
 		this._transitionTime = transitionTime;
 		this._transitionCurve = transitionCurve;
-		this._entryDomNode = null;
+		this._domRoot = domElement;
 
 		this._transitioning = false;
 		this._transitionNodeFrom = null;
@@ -100,7 +98,6 @@ export class NavController {
 		this._transitioningSubject = new Subject();
 		this._stoppedTransitioningSubject = new Subject();
 
-		this._domRoot = domElement;
 		this._domHost = LoadHtml(baseHtml);
 
 		this._init();
@@ -236,13 +233,13 @@ export class NavController {
 		if ( this._curNode != null ) {
 			this._curNode.onUnload();
 		}
-		let contentNode = this._entryDomNode.querySelector(ContentSelector);
+		let contentNode = this._domRoot.querySelector(ContentSelector);
 		contentNode.innerHTML = '';
 		this._append(contentNode, navNode.viewDom);
 		this._curNode = navNode;
 		this._curNodeDomContent = contentNode;
 		navNode.onLoad(contentNode);
-		this._initArrows(this._entryDomNode, navNode);
+		this._initArrows(this._domRoot, navNode);
 		let path = this._getShortestPath(navNode);
 		this._setDisplayPath(path);
 		window.history.replaceState(navNode.location, navNode.location.toString(), this._buildUrlPath(path));
@@ -253,7 +250,7 @@ export class NavController {
 	_createTransitionNode(fromNode) {
 		let rtn = document.createElement('div');
 		this._append(rtn, fromNode);
-		this._entryDomNode.appendChild(rtn);
+		this._domRoot.appendChild(rtn);
 		return rtn;
 	}
 
@@ -267,9 +264,8 @@ export class NavController {
 			if ( connection != undefined ) {
 				let fromNavNode = this._curNode;
 				let fromContentDomNode = this._curNodeDomContent;
-				fromNavNode.onUnload();
 
-				let fromNode = this._createTransitionNode(this._entryDomNode);
+				let fromNode = this._createTransitionNode(this._domRoot);
 
 				let targetView = this._domHost.cloneNode(true);
 				let contentNode = targetView.querySelector(ContentSelector);
@@ -281,8 +277,8 @@ export class NavController {
 				this._initArrows(toNode, connection.node);
 				this._setDisplayPath(path);
 
-				this._transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode, this._entryDomNode);
-				this._transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, contentNode, this._entryDomNode);
+				this._transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode, this._domRoot);
+				this._transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, contentNode, this._domRoot);
 				this._transitionT = 0;
 			}
 			else {
@@ -319,12 +315,13 @@ export class NavController {
 		_endTransition() {
 			this._transitioning = false;
 			this._stoppedTransitioningSubject.next();
+			this._transitionNodeFrom.navNode.onUnload();
 
 			this._transitionNodeTo.end();
 
-			this._append(this._entryDomNode, this._transitionNodeTo.node);
-			this._entryDomNode.removeChild(this._transitionNodeFrom.node);
-			this._entryDomNode.removeChild(this._transitionNodeTo.node);
+			this._append(this._domRoot, this._transitionNodeTo.node);
+			this._domRoot.removeChild(this._transitionNodeFrom.node);
+			this._domRoot.removeChild(this._transitionNodeTo.node);
 			this._transitionNodeFrom = null;
 			this._transitionNodeTo = null;
 		}
