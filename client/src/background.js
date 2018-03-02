@@ -24,8 +24,9 @@ varying vec2 texCoord;
 
 void main() {
 	float centreDistance = distance(vec2(0.5, 0.5), texCoord);
-	vec3 resultantColor = lightColor*pow(centreDistance, fallOff)*focalLength;
-	resultantColor = 1.0-resultantColor;
+	float invertedDistance = 1.0-centreDistance;
+	vec3 resultantColor = lightColor*pow(invertedDistance, fallOff)*focalLength;
+	//vec3 resultantColor = lightColor*pow(centreDistance, fallOff)*focalLength;
 
 	gl_FragColor = vec4(resultantColor, 0);
 }
@@ -33,12 +34,12 @@ void main() {
 
 
 const Settings = {
-	lightColor: new Color(1, 1, 1),
-	fallOff: 2,
-	focalLength: 3,
-	flickerTime: new Vector2(1, 2),
-	flickerResolveTime: new Vector2(1, 2),
-	flickerFallOff: new Vector2(0, 2),
+	lightColor: new Color(1, 0.839, 0.667),
+	fallOff: 4,
+	focalLength: 2.5,
+	flickerTime: new Vector2(0.16, 0.32),
+	flickerResolveTime: new Vector2(6, 12),
+	flickerFallOff: new Vector2(3, 5),
 }
 
 

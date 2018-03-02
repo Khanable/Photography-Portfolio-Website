@@ -50,12 +50,24 @@ uniform sampler2D tex;
 varying vec2 texCoord;
 
 void main() {
-	gl_FragColor = texture2D(tex, texCoord)*vec4(saturation, 0);
+	vec4 texColor = texture2D(tex, texCoord);
+	vec4 res = texColor;
+	if ( saturation != vec3(1, 1, 1) ) {
+		vec4 sat = vec4(saturation, 0);
+		float dist = distance(texColor, sat);
+		//Sepia negaive
+		res = texColor*sat/texColor*(sat/dist);
+		//Cool Negative
+		//res = texColor*dist;
+		//res = res + texColor;
+		//res = 1.0 - res;
+	}
+	gl_FragColor = res;
 }
 `;
 
 const Settings = {
-	saturation: new Color(0.2, 0.2, 0.2),
+	saturation: new Color(1, 0.839, 0.667),
 }
 
 const FullSaturation = new Color(1, 1, 1);
@@ -94,11 +106,13 @@ export class ImageGL {
 		this._mesh = new Mesh(geometry, material);
 		this._scene.add(this._mesh);
 
-		this._subscriptions.push(navController.transitioning.subscribe( () => {
-			this._uniforms.saturation.value = Settings.saturation;
-		}));
-		this._subscriptions.push(navController.stoppedTransitioning.subscribe( () => {
-			this._uniforms.saturation.value = FullSaturation;
+		this._subscriptions.push(navController.transitioning.subscribe( (state) => {
+			if ( state ) {
+				this._uniforms.saturation.value = Settings.saturation;
+			}
+			else {
+				this._uniforms.saturation.value = FullSaturation;
+			}
 		}));
 
 		this._loader = new TextureLoader();

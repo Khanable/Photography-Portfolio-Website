@@ -1,8 +1,8 @@
 import * as CubicHermiteSpline from 'cubic-hermite-spline';
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
-import { AppendAttribute, GetElementSize, LoadHtml } from './util.js';
-import { Subject } from 'rxjs';
+import { AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml } from './util.js';
+import { Subject, ReplaySubject } from 'rxjs';
 import './util.js';
 import 'url-parse';
 
@@ -95,13 +95,13 @@ export class NavController {
 		this._transitionNodeTo = null;
 		this._transitionT = 0;
 
-		this._transitioningSubject = new Subject();
-		this._stoppedTransitioningSubject = new Subject();
+		this._transitioningSubject = new ReplaySubject(1);
+		this._transitioningSubject.next(false);
 
 		this._domHost = LoadHtml(baseHtml);
 
 		this._init();
-		UpdateController.renderSubject.subscribe(this._updateTransition.bind(this));
+		UpdateController.updateSubject.subscribe(this._updateTransition.bind(this));
 		window.onpopstate = (event) => {
 			if ( event.state != undefined ) {
 				let location = event.state;
@@ -146,17 +146,11 @@ export class NavController {
 
 
 	_append(rootNode, domBody) {
-		while(domBody.children.length > 0 ) {
-			let child = domBody.children[0];
-			rootNode.appendChild(child);
-		}
+		AppendDomNodeChildren(rootNode, domBody);
 	}
 
 	get transitioning() {
 		return this._transitioningSubject;
-	}
-	get stoppedTransitioning() {
-		return this._stoppedTransitioningSubject;
 	}
 
 	_init() {
@@ -243,7 +237,7 @@ export class NavController {
 		let path = this._getShortestPath(navNode);
 		this._setDisplayPath(path);
 		window.history.replaceState(navNode.location, navNode.location.toString(), this._buildUrlPath(path));
-		this._stoppedTransitioningSubject.next();
+		//this._transitioningSubject.next(true);
 
 	}
 
@@ -257,15 +251,17 @@ export class NavController {
 	_transition(dir, path) {
 		if ( !this._transitioning ) {
 			this._transitioning = true;
-			this._transitioningSubject.next();
+			this._transitioningSubject.next(true);
 
 			let targetNode = path[path.length-1].node;
 			let connection = this._curNode.connections.find( e => e.dir == dir && e.node == targetNode );
 			if ( connection != undefined ) {
+				this._transitionT = 0;
 				let fromNavNode = this._curNode;
 				let fromContentDomNode = this._curNodeDomContent;
 
 				let fromNode = this._createTransitionNode(this._domRoot);
+				this._transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode, this._domRoot);
 
 				let targetView = this._domHost.cloneNode(true);
 				let contentNode = targetView.querySelector(ContentSelector);
@@ -273,12 +269,10 @@ export class NavController {
 				this._curNodeDomContent = contentNode;
 				this._append(contentNode, connection.node.viewDom);
 				let toNode = this._createTransitionNode(targetView);
+				this._transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, contentNode, this._domRoot);
+				connection.node.onLoad(contentNode);
 				this._initArrows(toNode, connection.node);
 				this._setDisplayPath(path);
-
-				this._transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode, this._domRoot);
-				this._transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, contentNode, this._domRoot);
-				this._transitionT = 0;
 			}
 			else {
 				this._transitioning = false;
@@ -296,12 +290,6 @@ export class NavController {
 
 	_updateTransition(dt) {
 		if ( this._transitioning ) {
-			//This works, Why does load work then, even when navigating with back/forward!!
-			if ( !this._callOnce ) {
-				this._callOnce = true;
-				this._transitionNodeTo.navNode.onLoad(this._curNodeDomContent);
-			}
-
 			let windowSize = GetElementSize(document.body);
 			let transitionDT = dt/this._transitionTime;
 			this._transitionT += transitionDT;
@@ -319,7 +307,7 @@ export class NavController {
 
 		_endTransition() {
 			this._transitioning = false;
-			this._stoppedTransitioningSubject.next();
+			this._transitioningSubject.next(false);
 			this._transitionNodeFrom.navNode.onUnload();
 
 			this._transitionNodeTo.end();
@@ -542,15 +530,21 @@ export class NavNode {
 		return this._onResizeSubject;
 	}
 	onLoad(domNode) {
-		this._onLoadSubject.next(this, domNode);
+		this._onLoadSubject.next(new NavNodeEventSubscription(this, domNode));
 	}
 	onUnload() {
 		this._onUnloadSubject.next(this);
 	}
 	onResize(domNode) {
-		this._onResizeSubject.next(this, domNode);
+		this._onResizeSubject.next(new NavNodeEventSubscription(this, domNode));
 	}
+}
 
+const NavNodeEventSubscription = function(navNode, domNode) {
+	return Object.freeze({
+		navNode: navNode,
+		domNode: domNode,
+	});
 }
 
 export const Dir = Object.freeze({

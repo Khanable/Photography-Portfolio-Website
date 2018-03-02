@@ -12,8 +12,8 @@ import './host.css';
 const SlideTransitionTime = 1;
 
 const SlideTransitionCurve = new TransitionCurve(
-	[new Vector2(0, 0), new Vector2(0.25, 1), new Vector2(1, 0)],
-	[new Vector2(0, 1), new Vector2(-1, -1), new Vector2(1, 1)],
+	[new Vector2(0, 0), new Vector2(0.04, 0), new Vector2(1, 0)],
+	[new Vector2(0, 0), new Vector2(-0.01, 0), new Vector2(1, 1)],
 );
 
 export class App {

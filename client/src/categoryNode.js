@@ -74,7 +74,6 @@ export class CategoryNode extends NavNode {
 
 	onLoad(domNode) {
 		super.onLoad(domNode);
-		console.log(GetElementSize(domNode));
 		this._domMain = domNode.querySelector(SelectorCategory);
 
 		this._setLoading();

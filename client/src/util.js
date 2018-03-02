@@ -39,3 +39,10 @@ export const LoadHtml = function(htmlStr) {
 	let parser = new DOMParser();
 	return parser.parseFromString(htmlStr, 'text/html').body;
 }
+
+export const AppendDomNodeChildren = function(rootNode, parentNode) {
+	while(parentNode.children.length > 0 ) {
+		let child = parentNode.children[0];
+		rootNode.appendChild(child);
+	}
+}
