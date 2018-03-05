@@ -4,15 +4,15 @@ body {
 	overflow: hidden;
 }
 
-#navigation, #background, body {
+#mainNavigation, #mainBackground, body {
 	height: 100%;
 	width: 100%;
 }
 
-#navigation, #background {
+#mainNavigation, #mainBackground {
 	position: absolute;
 }
 
-#background {
-	z-index: -1;
+#mainBackground {
+	background: white;
 }

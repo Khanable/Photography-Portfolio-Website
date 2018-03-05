@@ -8,10 +8,10 @@ import { Rect } from './rect.js';
 import './util.js';
 import { Controller } from './main.js'
 
-const SelectorCell = '.cell';
-const SelectorRow = '.row';
+const SelectorCell = '.categoryCell';
+const SelectorRow = '.categoryRow';
 const SelectorCategory = '#categoryMain';
-const SelectorText = '#text';
+const SelectorText = '#categoryText';
 
 export class CategoryNode extends NavNode {
 	constructor(location, url, numPerRow) {

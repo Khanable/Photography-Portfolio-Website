@@ -1,7 +1,7 @@
 import { NavNode } from './nav.js';
-import * as PhotoViewHtml from './photoView.html';
+import * as PhotoViewHtml from './photo.html';
 import { Vector2 } from './vector.js';
-import './photoView.css';
+import './photo.css';
 import { ImageGL, Resize, GetPhotoClassUrl } from './image.js';
 import { Controller } from './main.js'
 
@@ -43,7 +43,7 @@ export class PhotoNode extends NavNode {
 
 	onLoad(domNode) {
 		super.onLoad(domNode);
-		this._domMain = domNode.querySelector('#main');
+		this._domMain = domNode.querySelector('#photoContainer');
 
 		this._setLoading();
 		this._loadGL();

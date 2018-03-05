@@ -3,20 +3,25 @@ import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
 import { AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml } from './util.js';
 import { Subject, ReplaySubject } from 'rxjs';
+import { Matrix3 } from './matrix';
 import './util.js';
 import 'url-parse';
 
 
-const ContentSelector = '#content';
-const ArrowNorthSelector = '#arrowN';
-const ArrowSouthSelector = '#arrowS';
-const ArrowEastSelector = '#arrowE';
-const ArrowWestSelector = '#arrowW';
-const NoArrowNavClass = 'noArrowNav';
-const ArrowNavClass = 'arrowNav';
+const ContentSelector = '#navContent';
+const ArrowNorthSelector = '#navArrowN';
+const ArrowSouthSelector = '#navArrowS';
+const ArrowEastSelector = '#navArrowE';
+const ArrowWestSelector = '#navArrowW';
+const NoArrowNavClass = 'navNoArrowNav';
+const ArrowNavClass = 'navArrowNav';
+const NavWindowPathSelector = '#navPathMask';
 
+const NavSlideControlSize = 40;
+const NavSlideBendAmount = 20;
 const TransitionNodeBaseStyle = 'position:absolute;height:100%;width:100%;margin:0px;';
 const TransitionNodePositionFormat = 'top:{0}px;left:{1}px;';
+const CornerCurveFactor = 0.1;
 
 export class TransitionCurve {
 	constructor(points, tangents) {
@@ -44,7 +49,7 @@ class TransitionNode {
 
 	_getStartPos() {
 		let windowSize = GetElementSize(this._domRoot);
-		return this._incomming ? windowSize.mulv(this._getTransitionVector()) : Vector2.Zero;
+		return this._incomming ? windowSize.mul(this._getTransitionVector()) : Vector2.Zero;
 	}
 
 	_getTransitionVector() {
@@ -60,7 +65,7 @@ class TransitionNode {
 		let windowSize = GetElementSize(document.body);
 		let transitionVector = this._getTransitionVector();
 		let v = this._curve.interpolate(t)[0];
-		let pos = startPos.add( windowSize.mul(-v).mulv(transitionVector) );
+		let pos = startPos.add( windowSize.mul(-v).mul(transitionVector) );
 		this._setTransitionNodeStyle(pos);
 	}
 
@@ -130,20 +135,81 @@ export class NavController {
 			}
 		}
 
-		window.addEventListener('resize', () => { 
-			if ( !this._transitioning && this._curNode != null ) {
-				this._curNode.onResize(this._curNodeDomContent);
-			}
-			else {
-				let transitionNodes = this._getTransitionNodeCollection();
-				for(let tNode of transitionNodes) {
-					tNode.navNode.onResize(tNode.domContentNode);
-				}
-			}
-		});
-		
+		window.addEventListener('resize', this._resize.bind(this));
 	}
 
+	_resizePathView() {
+		let paths = [];
+
+		if ( !this._transitioning && this._curNode != null ) {
+			let path = this._domRoot.querySelector(NavWindowPathSelector);
+			paths.push(path);
+		}
+		else {
+			let transitionNodes = this._getTransitionNodeCollection();
+			for(let tNode of transitionNodes) {
+				let path = tNode.node.querySelector(NavWindowPathSelector);
+				paths.push(path);
+			}
+		}
+
+		let boundsSize = GetElementSize(this._domRoot).sub(NavSlideControlSize*2);
+		let right = new Vector2(boundsSize.x, 0);
+		let top = new Vector2(0, boundsSize.y);
+		let scale = boundsSize.x < boundsSize.y ? boundsSize.x : boundsSize.y;
+		scale/=2;
+		let points = [
+			new Vector2(CornerCurveFactor, 0).mul(scale),
+			new Vector2(-CornerCurveFactor, 0).mul(scale).add(right),
+			new Vector2(0, CornerCurveFactor).mul(scale).add(right),
+			new Vector2(0, -CornerCurveFactor).mul(scale).add(boundsSize),
+			new Vector2(-CornerCurveFactor, 0).mul(scale).add(boundsSize),
+			new Vector2(0, -CornerCurveFactor).mul(scale).add(top),
+			new Vector2(CornerCurveFactor, 0).mul(scale).add(top),
+			new Vector2(0, CornerCurveFactor).mul(scale),
+		];
+		points = points.map( e => e.add(NavSlideControlSize) );
+
+		let bend = new Vector2(NavSlideBendAmount, 0);
+		let defs = [];
+		for( let i = 0; i < 1; i++ ) {
+			let b = i*2;
+			let lp = points[b];
+			let rp = points[b+1];
+			let dir = rp.sub(lp).normalize();
+			let rotDir = bend.rotate(-0.785*2);
+			let lHandle = dir.mul(NavSlideBendAmount).add(lp).add(rotDir);
+			let rHandle = dir.mul(-NavSlideBendAmount).add(rp).add(rotDir);
+
+			if ( i == 0 ) {
+				defs.push('M {0} {1}'.format(lp.x, lp.y));
+				defs.push('C {0} {1}, {2} {3}, {4} {5}'.format(lHandle.x, lHandle.y, rHandle.x, rHandle.y, rp.x, rp.y));
+			}
+			else {
+				defs.push('S {0} {1}, {2} {3}'.format(lHandle.x, lHandle.y, lp.x, lp.y));
+				defs.push('S {0} {1}, {2} {3}'.format(rHandle.x, rHandle.y, rp.x, rp.y));
+			}
+		}
+		paths.forEach( e => e.setAttribute('d', defs.join(' ')) );
+	}
+
+
+	_resize() {
+		if ( !this._transitioning && this._curNode != null ) {
+			this._curNode.onResize(this._curNodeDomContent);
+			let path = this._domRoot.querySelector(NavWindowPathSelector);
+			paths.push(path);
+		}
+		else {
+			let transitionNodes = this._getTransitionNodeCollection();
+			for(let tNode of transitionNodes) {
+				tNode.navNode.onResize(tNode.domContentNode);
+				let path = tNode.node.querySelector(NavWindowPathSelector);
+				paths.push(path);
+			}
+		}
+		this._resizePathView();
+	}
 
 	_append(rootNode, domBody) {
 		AppendDomNodeChildren(rootNode, domBody);
@@ -238,6 +304,7 @@ export class NavController {
 		this._setDisplayPath(path);
 		window.history.replaceState(navNode.location, navNode.location.toString(), this._buildUrlPath(path));
 		//this._transitioningSubject.next(true);
+		this._resizePathView();
 
 	}
 
@@ -273,6 +340,8 @@ export class NavController {
 				connection.node.onLoad(contentNode);
 				this._initArrows(toNode, connection.node);
 				this._setDisplayPath(path);
+
+				this._resizePathView();
 			}
 			else {
 				this._transitioning = false;

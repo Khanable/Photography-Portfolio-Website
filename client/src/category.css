@@ -1,8 +1,8 @@
-#categoryMain, .cell {
+#categoryMain, .categoryCell {
 	align-items: center;
 	justify-content: center;
 }
-#categoryMain, .row, .cell {
+#categoryMain, .categoryRow, .categoryCell {
 	display: flex;
 }
 
@@ -12,10 +12,10 @@
 	flex-flow: column nowrap;
 }
 
-.row {
+.categoryRow {
 	flex-flow: row nowrap;
 }
-.cell {
+.categoryCell {
 	width: 100%;
 	height: 100%;
 }

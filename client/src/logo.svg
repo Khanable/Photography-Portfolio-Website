@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   id="svg8"
+   version="1.1"
+   viewBox="0 0 52.916665 52.916668"
+   height="200"
+   width="200">
+  <defs
+     id="defs2" />
+  <metadata
+     id="metadata5">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     transform="translate(0,-244.08332)"
+     id="layer1">
+    <path
+       id="path4510"
+       d="m 25.132888,252.60439 c -5.747905,-5.96037 -26.07813291,9.61556 -3.927394,11.12376 -21.67620421,1.90584 -17.9513732,24.31446 3.424114,15.28761"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.66145833;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    <g
+       style="stroke-width:0.57447581;stroke-miterlimit:4;stroke-dasharray:none"
+       transform="matrix(1.4592559,0,0,0.90851068,-20.778755,25.574375)"
+       id="g4521">
+      <path
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.57447581;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:normal"
+         d="m 34.36903,256.99924 c 1.512378,-2.08817 1.606123,-7.55303 1.089912,-1.02315 -0.891918,11.28244 -0.417142,22.84457 -6.227385,32.57677"
+         id="path4512" />
+      <path
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.57447581;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="m 34.634064,269.84708 c 1.936113,2.36313 9.5695,-14.10204 8.993807,-16.50917 -4.717675,3.56837 -5.416596,34.59013 -0.31775,36.30347"
+         id="path4514" />
+    </g>
+    <ellipse
+       ry="26.059658"
+       rx="26.059654"
+       cy="270.54272"
+       cx="26.45833"
+       id="path817"
+       style="opacity:1;fill:none;fill-opacity:0.53846154;stroke:#000000;stroke-width:0.52916666;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:normal" />
+  </g>
+</svg>

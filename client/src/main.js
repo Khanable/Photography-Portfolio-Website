@@ -4,26 +4,26 @@ import { GetNavFromUrl } from './util.js';
 import { UpdateController } from './update.js';
 import { Background } from './background.js';
 import { Graph } from './navGraph.js'
-import * as hostHtml from './host.html';
+import * as hostHtml from './nav.html';
 import './main.css';
-import './host.css';
+import './nav.css';
 
 //Seconds
-const SlideTransitionTime = 1;
+const SlideTransitionTime = 0.7;
 
 const SlideTransitionCurve = new TransitionCurve(
-	[new Vector2(0, 0), new Vector2(0.04, 0), new Vector2(1, 0)],
-	[new Vector2(0, 0), new Vector2(-0.01, 0), new Vector2(1, 1)],
+	[new Vector2(0, 0), new Vector2(1, 0)],
+	[new Vector2(0, 0), new Vector2(0, 0)],
 );
 
 export class App {
 	constructor() {
-		let domNav = document.createElement('div');
-		domNav.setAttribute('id', 'navigation');
-		document.body.appendChild(domNav);
 		let domBackground = document.createElement('div');
-		domBackground.setAttribute('id', 'background');
+		domBackground.setAttribute('id', 'mainBackground');
 		document.body.appendChild(domBackground);
+		let domNav = document.createElement('div');
+		domNav.setAttribute('id', 'mainNavigation');
+		document.body.appendChild(domNav);
 		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve, domNav, hostHtml);
 		this._background = new Background(this._nav, domBackground);
 	}

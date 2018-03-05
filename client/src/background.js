@@ -26,8 +26,6 @@ void main() {
 	float centreDistance = distance(vec2(0.5, 0.5), texCoord);
 	float invertedDistance = 1.0-centreDistance;
 	vec3 resultantColor = lightColor*pow(invertedDistance, fallOff)*focalLength;
-	//vec3 resultantColor = lightColor*pow(centreDistance, fallOff)*focalLength;
-
 	gl_FragColor = vec4(resultantColor, 0);
 }
 `;
@@ -84,6 +82,11 @@ export class Background {
 	}
 
 	_getViewFustrum() {
+
+		//let aspect = elementSize.x/elementSize.y;
+		//let xScale = aspect > 1 ? elementSize.x*aspect : elementSize.x;
+		//let yScale = aspect > 1 ? elementSize.y : elementSize.y*aspect;
+
 		let windowSize = GetWindowSize();
 		let aspect = windowSize.x < windowSize.y ? windowSize.x/windowSize.y : windowSize.y/windowSize.x;
 		aspect/=2;
