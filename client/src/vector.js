@@ -34,11 +34,11 @@ export class Vector2 {
 	get y() {
 		return this._y;
 	}
-	mag() {
+	magnitude() {
 		return Math.sqrt( this.x*this.x + this.y*this.y );
 	}
 	normalize() {
-		let mag = this.mag();
+		let mag = this.magnitude();
 		return new Vector2(this.x/mag, this.y/mag);
 	}
 	rotate(t) {

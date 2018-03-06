@@ -26,7 +26,7 @@ void main() {
 	float centreDistance = distance(vec2(0.5, 0.5), texCoord);
 	float invertedDistance = 1.0-centreDistance;
 	vec3 resultantColor = lightColor*pow(invertedDistance, fallOff)*focalLength;
-	gl_FragColor = vec4(resultantColor, 0);
+	gl_FragColor = vec4(resultantColor, 1);
 }
 `;
 

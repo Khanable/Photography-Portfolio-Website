@@ -13,9 +13,9 @@ class Draw {
 
 export class GLRenderer {
 	constructor() {
-		this._renderer = new WebGLRenderer();
+		this._renderer = new WebGLRenderer( {alpha: true } );
 		this._renderer.setPixelRatio(window.devicePixelRatio);
-		this._renderer.setClearColor(new Color(0, 0, 0));
+		//this._renderer.autoClear = false;
 
 		this._draws = [];
 

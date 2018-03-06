@@ -17,11 +17,11 @@ const NoArrowNavClass = 'navNoArrowNav';
 const ArrowNavClass = 'navArrowNav';
 const NavWindowPathSelector = '#navPathMask';
 
-const NavSlideControlSize = 40;
-const NavSlideBendAmount = 20;
+const NavSlideControlSize = 60;
+const NavSlideBendAmount = 30;
 const TransitionNodeBaseStyle = 'position:absolute;height:100%;width:100%;margin:0px;';
 const TransitionNodePositionFormat = 'top:{0}px;left:{1}px;';
-const CornerCurveFactor = 0.1;
+const CornerCurveFactor = 0.12;
 
 export class TransitionCurve {
 	constructor(points, tangents) {
@@ -164,31 +164,37 @@ export class NavController {
 			new Vector2(0, CornerCurveFactor).mul(scale).add(right),
 			new Vector2(0, -CornerCurveFactor).mul(scale).add(boundsSize),
 			new Vector2(-CornerCurveFactor, 0).mul(scale).add(boundsSize),
-			new Vector2(0, -CornerCurveFactor).mul(scale).add(top),
 			new Vector2(CornerCurveFactor, 0).mul(scale).add(top),
+			new Vector2(0, -CornerCurveFactor).mul(scale).add(top),
 			new Vector2(0, CornerCurveFactor).mul(scale),
 		];
 		points = points.map( e => e.add(NavSlideControlSize) );
 
-		let bend = new Vector2(NavSlideBendAmount, 0);
 		let defs = [];
-		for( let i = 0; i < 1; i++ ) {
+		for( let i = 0; i < 4; i++ ) {
 			let b = i*2;
 			let lp = points[b];
 			let rp = points[b+1];
-			let dir = rp.sub(lp).normalize();
-			let rotDir = bend.rotate(-0.785*2);
-			let lHandle = dir.mul(NavSlideBendAmount).add(lp).add(rotDir);
-			let rHandle = dir.mul(-NavSlideBendAmount).add(rp).add(rotDir);
+			let peek = b+2 < points.length ? points[b+2] : points[0];
 
+			//Draw Edge
+			let edgeDir = rp.sub(lp).normalize();
+			//90 degree rotation
+			let edgeNormal = new Vector2(-edgeDir.y, edgeDir.x).mul(-1);
+			let lpEdgeHandlePoint = lp.add(edgeDir.mul(NavSlideBendAmount).add(edgeNormal.mul(NavSlideBendAmount)));
+			let rpEdgeHandlePoint = rp.add(edgeDir.mul(-NavSlideBendAmount).add(edgeNormal.mul(NavSlideBendAmount)));
 			if ( i == 0 ) {
 				defs.push('M {0} {1}'.format(lp.x, lp.y));
-				defs.push('C {0} {1}, {2} {3}, {4} {5}'.format(lHandle.x, lHandle.y, rHandle.x, rHandle.y, rp.x, rp.y));
 			}
-			else {
-				defs.push('S {0} {1}, {2} {3}'.format(lHandle.x, lHandle.y, lp.x, lp.y));
-				defs.push('S {0} {1}, {2} {3}'.format(rHandle.x, rHandle.y, rp.x, rp.y));
-			}
+			defs.push('C {0} {1}, {2} {3}, {4} {5}'.format(lpEdgeHandlePoint.x, lpEdgeHandlePoint.y, rpEdgeHandlePoint.x, rpEdgeHandlePoint.y, rp.x, rp.y));
+
+			//Draw Corner
+			let cornerHandleLength = peek.sub(rp).magnitude()*CornerCurveFactor;
+			let cornerDir = peek.sub(rp).normalize();
+			let cornerNormal = cornerDir.rotate(Math.PI/2).mul(-1);
+			let lpCornerHandlePoint = rp.add(cornerDir.mul(cornerHandleLength).add(cornerNormal.mul(cornerHandleLength)));
+			let rpCornerHandlePoint = peek.add(cornerDir.mul(-cornerHandleLength).add(cornerNormal.mul(cornerHandleLength)));
+			defs.push('C {0} {1}, {2} {3}, {4} {5}'.format(lpCornerHandlePoint.x, lpCornerHandlePoint.y, rpCornerHandlePoint.x, rpCornerHandlePoint.y, peek.x, peek.y));
 		}
 		paths.forEach( e => e.setAttribute('d', defs.join(' ')) );
 	}
@@ -197,15 +203,11 @@ export class NavController {
 	_resize() {
 		if ( !this._transitioning && this._curNode != null ) {
 			this._curNode.onResize(this._curNodeDomContent);
-			let path = this._domRoot.querySelector(NavWindowPathSelector);
-			paths.push(path);
 		}
 		else {
 			let transitionNodes = this._getTransitionNodeCollection();
 			for(let tNode of transitionNodes) {
 				tNode.navNode.onResize(tNode.domContentNode);
-				let path = tNode.node.querySelector(NavWindowPathSelector);
-				paths.push(path);
 			}
 		}
 		this._resizePathView();

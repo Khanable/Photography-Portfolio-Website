@@ -50,17 +50,18 @@ uniform sampler2D tex;
 varying vec2 texCoord;
 
 void main() {
-	vec4 texColor = texture2D(tex, texCoord);
-	vec4 res = texColor;
-	if ( saturation != vec3(1, 1, 1) ) {
-		vec4 sat = vec4(saturation, 0);
-		float dist = distance(texColor, sat);
-		//Sepia negaive
-		res = texColor*sat/texColor*(sat/dist);
-		//Cool Negative
-		//res = texColor*dist;
-		//res = res + texColor;
-		//res = 1.0 - res;
+	vec4 texColor4 = texture2D(tex, texCoord);
+	vec3 texColor = vec3(texColor4.r, texColor4.g, texColor4.b);
+	vec4 res = texColor4;
+	if ( saturation == vec3(1, 1, 1) ) {
+		float mag = length(texColor);
+		//Saturated Negative
+		//vec3 dir = normalize(saturation);
+		//res = vec4(dir*mag, mag);
+		
+		//Black White
+		res = vec4(texColor, 0);
+
 	}
 	gl_FragColor = res;
 }
