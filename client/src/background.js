@@ -1,5 +1,5 @@
 import { UpdateController } from './update';
-import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial } from 'three';
+import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath } from 'three';
 import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
 import { Vector2 } from './vector.js';
 import { Color } from 'three';
@@ -25,6 +25,7 @@ varying vec2 texCoord;
 void main() {
 	float centreDistance = distance(vec2(0.5, 0.5), texCoord);
 	float invertedDistance = pow(1.0-centreDistance, fallOffFactor);
+	//Inverse Square law
 	float intensity = strength / 4.0*3.14159265359*pow(invertedDistance, 2.0);
 	vec3 resultantColor = lightColor*intensity;
 	gl_FragColor = vec4(resultantColor, 1);
@@ -35,10 +36,16 @@ void main() {
 const Settings = {
 	lightColor: new Color(1, 0.839, 0.667),
 	fallOffFactor: 3.0,
-	strength: 1.5,
-	flickerTime: new Vector2(0.16, 0.32),
-	flickerResolveTime: new Vector2(6, 12),
-	flickerFallOff: new Vector2(0, 1),
+	strength: 2.5,
+	firstLoadDarkTime: 0.75,
+	firstLoadWarmTime: 3,
+}
+
+const FirstLoadState = {
+	Complete: 0,
+	Start: 1,
+	Dark: 2,
+	Warm: 3,
 }
 
 
@@ -49,11 +56,11 @@ export class Background {
 		this._camera = new OrthographicCamera( -1, 1, 1, -1, 0, 1 );
 		this._scene = new Scene();
 		this._mesh = null;
+		this._firstLoadState = FirstLoadState.Complete;
 		this._t = 0;
-		this._tFlicker = 0;
-		this._nFlickerTime = 0;
-		this._nFlickerResolve = 0;
-		this._nFlickerFallOffE = 0;
+		this._nFirstLoadState = 0;
+		this._finishFirstLoadCallback = null;
+
 		this._uniforms = {
 			lightColor: { value: Settings.lightColor },
 			strength: { value: Settings.strength },
@@ -70,6 +77,10 @@ export class Background {
 
 		UpdateController.updateSubject.subscribe( this._update.bind(this) );
 		window.addEventListener('resize', this._resize.bind(this));
+		navController.animatedLoadCallback = e => {
+			this._firstLoadState = FirstLoadState.Start;
+			this._finishFirstLoadCallback = e.transitionSlide;
+		};
 		this._resize();
 	}
 
@@ -83,14 +94,10 @@ export class Background {
 	}
 
 	_getViewFustrum() {
-
-		//let aspect = elementSize.x/elementSize.y;
-		//let xScale = aspect > 1 ? elementSize.x*aspect : elementSize.x;
-		//let yScale = aspect > 1 ? elementSize.y : elementSize.y*aspect;
-
 		let windowSize = GetWindowSize();
 		let aspect = windowSize.x < windowSize.y ? windowSize.x/windowSize.y : windowSize.y/windowSize.x;
 		aspect/=2;
+
 		let rtn = {
 			left: -aspect,
 			right: aspect,
@@ -113,16 +120,28 @@ export class Background {
 	_update(dt) {
 		this._t+=dt;
 
-		if ( this._t >= this._nFlickerTime && this._t < this._nFlickerResolve ) {
-			let t = this._t - this._nFlickerTime;
-			let e = this._nFlickerResolve - this._nFlickerTime;
-			this._uniforms.strength.value = this._lerpParabola(t/e, Settings.strength, this._nFlickerFallOffE);
+		if ( this._firstLoadState == FirstLoadState.Start) {
+			this._firstLoadState = FirstLoadState.Dark;
+			this._nFirstLoadState = this._t+Settings.firstLoadDarkTime;
+			this._uniforms.strength.value = 0;
 		}
-		else if ( this._t >= this._nFlickerResolve ) {
-			this._nFlickerTime = this._t+RandomRange(Settings.flickerTime.x, Settings.flickerTime.y);
-			this._nFlickerResolve = this._nFlickerTime+RandomRange(Settings.flickerResolveTime.x, Settings.flickerResolveTime.y);
-			this._nFlickerFallOffE = RandomRange(Settings.flickerFallOff.x, Settings.flickerFallOff.y);
-			this._uniforms.strength.value = Settings.strength;
+
+		if ( this._firstLoadState == FirstLoadState.Dark && this._t > this._nFirstLoadState ) {
+			this._firstLoadState = FirstLoadState.Warm;
+			this._nFirstLoadState = this._t+Settings.firstLoadWarmTime;
+		}
+
+		if ( this._firstLoadState == FirstLoadState.Warm ) {
+			if ( this._t <= this._nFirstLoadState ) {
+				let start = this._nFirstLoadState-Settings.firstLoadWarmTime;
+				let t = this._t-start;
+				this._uniforms.strength.value = ThreeMath.lerp(0, Settings.strength, t/Settings.firstLoadWarmTime);
+			}
+			else {
+				this._uniforms.strength.value = Settings.strength;
+				this._finishFirstLoadCallback();
+				this._firstLoadState = FirstLoadState.Complete;
+			}
 		}
 
 		GL.draw(this._scene, this._camera, GetElementRect(this._domRoot), 0);

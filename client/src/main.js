@@ -3,13 +3,14 @@ import { NavController, TransitionCurve } from './nav.js';
 import { GetNavFromUrl } from './util.js';
 import { UpdateController } from './update.js';
 import { Background } from './background.js';
-import { Graph } from './navGraph.js'
+import { Graph, Location } from './navGraph.js'
 import * as hostHtml from './nav.html';
 import './main.css';
 import './nav.css';
 
 //Seconds
-const SlideTransitionTime = 0.7;
+const SlideTransitionTime = 0.5;
+const AnimatedLoadSlideTransitionTime = 1.0;
 
 const SlideTransitionCurve = new TransitionCurve(
 	[new Vector2(0, 0), new Vector2(1, 0)],
@@ -24,13 +25,24 @@ export class App {
 		let domNav = document.createElement('div');
 		domNav.setAttribute('id', 'mainNavigation');
 		document.body.appendChild(domNav);
-		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve, domNav, hostHtml);
+		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve, domNav, hostHtml, this._performAnimatedLoad.bind(this), AnimatedLoadSlideTransitionTime);
 		this._background = new Background(this._nav, domBackground);
 	}
 
+	_performAnimatedLoad(navNode) {
+		let firstLoad = window.sessionStorage.getItem('firstLoad');
+		if ( !firstLoad ) {
+			window.sessionStorage.setItem('firstLoad', false);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+
 	init() {
-		UpdateController.start();
 		let navNode = Graph.getFromUrl(document.URL);
+		UpdateController.start();
 		this._nav.load(navNode);
 	}
 	get navController() {

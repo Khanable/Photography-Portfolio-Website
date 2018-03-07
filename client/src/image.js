@@ -7,7 +7,7 @@ import './util.js'
 import { GetElementSize, GetElementRect } from './util.js';
 import { GL } from './gl.js';
 import { UpdateController } from './update.js';
-import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial } from 'three';
+import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath } from 'three';
 import { MeshBasicMaterial } from 'three';
 import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
 import { Vector2 } from './vector.js';
@@ -46,26 +46,16 @@ void main() {
 `;
 const ImageGLFragmentShader = `
 
-uniform vec3 saturation;
+uniform float strength;
 uniform sampler2D tex;
 varying vec2 texCoord;
 
 void main() {
-	vec4 texColor4 = texture2D(tex, texCoord);
-	vec3 texColor = vec3(texColor4.r, texColor4.g, texColor4.b);
-	vec4 res = texColor4;
-	if ( saturation != vec3(1, 1, 1) ) {
-		float mag = length(texColor);
-		//Saturated Negative
-		//vec3 dir = normalize(saturation);
-		//res = vec4(dir*mag, mag);
-		
-		//Black White Negative
-		float color = 1.0 - mag;
-		res = vec4(vec3(color, color, color), color);
-
-	}
-	gl_FragColor = res;
+	vec4 texColor = texture2D(tex, texCoord);
+	float mag = length(texColor);
+	float negColorV = 1.0 - mag;
+	vec4 negColor = vec4(-negColorV, -negColorV, -negColorV, negColorV);
+	gl_FragColor = mix(negColor, texColor, strength);
 }
 `;
 
@@ -87,6 +77,15 @@ export const Resize = function(containerRect, elementSize) {
 	return new Rect(fitPos.x, fitPos.y, fitSize.x, fitSize.y);
 }
 
+const ImageGLState = {
+	TransitionIn: 0,
+	TransitionInComplete: 1,
+	TransitionOut: 2,
+	TransitionOutComplete: 3,
+}
+
+//Move me to constructor of ImageGL
+const ImageStateTransitionTime = 1.0;
 export class ImageGL {
 	constructor(domRoot, navController, url) {
 		this._domRoot = domRoot;
@@ -95,9 +94,12 @@ export class ImageGL {
 		this._camera = new OrthographicCamera( -0.5, 0.5, 0.5, -0.5, 0, 1 );
 		this._scene = new Scene();
 		this._mesh = null;
+		this._curState = ImageGLState.TransitionIn;
+		this._t = 0;
+		this._nStateEnd = 0;
 		this._subscriptions = [];
 		this._uniforms = {
-			saturation: { value: Settings.saturation },
+			strength: { value: 1 },
 			tex: { value: null },
 		};
 		let material = new ShaderMaterial( {
@@ -111,11 +113,9 @@ export class ImageGL {
 		this._scene.add(this._mesh);
 
 		this._subscriptions.push(navController.transitioning.subscribe( (state) => {
-			if ( state ) {
-				this._uniforms.saturation.value = Settings.saturation;
-			}
-			else {
-				this._uniforms.saturation.value = FullSaturation;
+			if ( state && this._curState == ImageGLState.TransitionInComplete ) {
+				this._curState = ImageGLState.TransitionOut;
+				this._nStateEnd = this._t+ImageStateTransitionTime;
 			}
 		}));
 
@@ -125,13 +125,40 @@ export class ImageGL {
 			texture.minFilter = LinearFilter;
 			this._loaded = true;
 			this._loadedSubject.next();
+			this._nStateEnd = this._t+ImageStateTransitionTime;
 		});
 
 		UpdateController.updateSubject.subscribe( this._update.bind(this) );
 	}
 
 	_update(dt) {
+		this._t+=dt;
+
 		if ( this._loaded && this._domRoot != null) {
+			if ( this._curState == ImageGLState.TransitionIn ) {
+				if ( this._t <= this._nStateEnd ) {
+					let start = this._nStateEnd-ImageStateTransitionTime;
+					let t = this._t - start;
+					this._uniforms.strength.value = ThreeMath.lerp(0, 1, t/ImageStateTransitionTime);
+				}
+				else {
+					this._uniforms.strength.value = 1;
+					this._curState = ImageGLState.TransitionInComplete;
+				}
+			}
+
+			if ( this._curState == ImageGLState.TransitionOut ) {
+				if ( this._t <= this._nStateEnd ) {
+					let start = this._nStateEnd-ImageStateTransitionTime;
+					let t = this._t - start;
+					this._uniforms.strength.value = ThreeMath.lerp(1, 0, t/ImageStateTransitionTime);
+				}
+				else {
+					this._uniforms.strength.value = 0;
+					this._curState = ImageGLState.TransitionOutComplete;
+				}
+			}
+
 			let containerRect = GetElementRect(this._domRoot)
 			let img = this._uniforms.tex.value.image;
 			let imgSize = new Vector2(img.width, img.height);
@@ -141,6 +168,7 @@ export class ImageGL {
 	}
 
 	destroy() {
+		this._loaded = false;
 		this._subscriptions.forEach( e => e.unsubscribe() );
 	}
 

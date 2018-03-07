@@ -96,5 +96,6 @@ export class CategoryNode extends NavNode {
 		super.onUnload();
 		this._images.forEach( e => e.destroy() );
 		this._subscriptions.forEach( e => e.unsubscribe() );
+		this._images = null;
 	}
 }

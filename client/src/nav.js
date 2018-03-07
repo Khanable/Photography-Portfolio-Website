@@ -1,7 +1,7 @@
 import * as CubicHermiteSpline from 'cubic-hermite-spline';
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
-import { AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml } from './util.js';
+import { AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
 import { Subject, ReplaySubject } from 'rxjs';
 import { Matrix3 } from './matrix';
 import './util.js';
@@ -87,17 +87,20 @@ class TransitionNode {
 }
 
 export class NavController {
-	constructor(navGraph, transitionTime, transitionCurve, domElement, baseHtml) {
+	constructor(navGraph, transitionTime, transitionCurve, domElement, baseHtml, shouldPerformAnimatedLoadFunc, animatedLoadTransitionSpeed) {
 		this._navGraph = navGraph;
 		this._curNode = null;
 		this._curNodeDomContent = null;
+		this._curTransitionTime = transitionTime;
 		this._transitionTime = transitionTime;
+		this._animatedLoadTransitionSpeed = animatedLoadTransitionSpeed;
 		this._transitionCurve = transitionCurve;
 		this._domRoot = domElement;
+		this._shouldPerformAnimatedLoad = shouldPerformAnimatedLoadFunc;
+		this._animatedLoadCallback = null;
 
 		this._transitioning = false;
-		this._transitionNodeFrom = null;
-		this._transitionNodeTo = null;
+		this._transitionNodes = null;
 		this._transitionT = 0;
 
 		this._transitioningSubject = new ReplaySubject(1);
@@ -105,7 +108,6 @@ export class NavController {
 
 		this._domHost = LoadHtml(baseHtml);
 
-		this._init();
 		UpdateController.updateSubject.subscribe(this._updateTransition.bind(this));
 		window.onpopstate = (event) => {
 			if ( event.state != undefined ) {
@@ -117,6 +119,7 @@ export class NavController {
 					if ( connection != undefined ) {
 						let node = connection.node;
 						let path = this._getShortestPath(node);
+						this._curTransitionTime = this._transitionTime;
 						this._transition(connection.dir, path);
 					}
 					else {
@@ -129,13 +132,16 @@ export class NavController {
 
 				if ( loadLocation ) {
 					let node = this._navGraph.get(location);
-					this._init();
-					this.load(node);
+					this._load(node);
 				}
 			}
 		}
 
 		window.addEventListener('resize', this._resize.bind(this));
+	}
+
+	set animatedLoadCallback(v) {
+		return this._animatedLoadCallback = v;
 	}
 
 	_resizePathView() {
@@ -146,7 +152,7 @@ export class NavController {
 			paths.push(path);
 		}
 		else {
-			let transitionNodes = this._getTransitionNodeCollection();
+			let transitionNodes = this._transitionNodes;
 			for(let tNode of transitionNodes) {
 				let path = tNode.node.querySelector(NavWindowPathSelector);
 				paths.push(path);
@@ -205,7 +211,7 @@ export class NavController {
 			this._curNode.onResize(this._curNodeDomContent);
 		}
 		else {
-			let transitionNodes = this._getTransitionNodeCollection();
+			let transitionNodes = this._transitionNodes;
 			for(let tNode of transitionNodes) {
 				tNode.navNode.onResize(tNode.domContentNode);
 			}
@@ -222,7 +228,6 @@ export class NavController {
 	}
 
 	_init() {
-		this._transitioning = false;
 		this._domRoot.innerHTML = '';
 		let host = this._domHost.cloneNode(true);
 		this._append(this._domRoot, host);
@@ -231,6 +236,7 @@ export class NavController {
 	_clickArrow(dir, navNode) {
 		if ( !this._transitioning ) {
 			let path = this._getShortestPath(navNode);
+			this._curTransitionTime = this._transitionTime;
 			this._transition(dir, path);
 			this._pushHistory(path);
 		}
@@ -291,7 +297,13 @@ export class NavController {
 		}
 	}
 
-	load(navNode) {
+	_setTransitioning(v) {
+		this._transitioning = v;
+		this._transitioningSubject.next(v);
+	}
+
+	_load(navNode) {
+		this._init();
 		if ( this._curNode != null ) {
 			this._curNode.onUnload();
 		}
@@ -305,9 +317,31 @@ export class NavController {
 		let path = this._getShortestPath(navNode);
 		this._setDisplayPath(path);
 		window.history.replaceState(navNode.location, navNode.location.toString(), this._buildUrlPath(path));
-		//this._transitioningSubject.next(true);
 		this._resizePathView();
+	}
 
+	load(navNode) {
+		if ( this._shouldPerformAnimatedLoad(navNode) ) {
+			if ( this._animatedLoadCallback != null ) {
+				this._animatedLoadCallback( { transitionSlide: () => this._animatedLoad(navNode) } );
+			}
+			else {
+				this._animatedLoad(navNode);
+			}
+		}
+		else {
+			this._load(navNode);
+			this._setTransitioning(false);
+			this._curTransitionTime = this._transitionTime;
+		}
+	}
+
+	_animatedLoad(navNode) {
+		this._load(navNode);
+		this._setTransitioning(true);
+		this._curTransitionTime = this._animatedLoadTransitionSpeed;
+		let domNode = this._createTransitionNode(this._domRoot);
+		this._transitionNodes = [new TransitionNode(domNode, true, Math.floor(RandomRange(0, 4)), this._transitionCurve, navNode, this._curNodeDomContent, this._domRoot)];
 	}
 
 	_createTransitionNode(fromNode) {
@@ -319,8 +353,7 @@ export class NavController {
 
 	_transition(dir, path) {
 		if ( !this._transitioning ) {
-			this._transitioning = true;
-			this._transitioningSubject.next(true);
+		this._setTransitioning(true);
 
 			let targetNode = path[path.length-1].node;
 			let connection = this._curNode.connections.find( e => e.dir == dir && e.node == targetNode );
@@ -330,7 +363,7 @@ export class NavController {
 				let fromContentDomNode = this._curNodeDomContent;
 
 				let fromNode = this._createTransitionNode(this._domRoot);
-				this._transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode, this._domRoot);
+				let transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode, this._domRoot);
 
 				let targetView = this._domHost.cloneNode(true);
 				let contentNode = targetView.querySelector(ContentSelector);
@@ -338,15 +371,17 @@ export class NavController {
 				this._curNodeDomContent = contentNode;
 				this._append(contentNode, connection.node.viewDom);
 				let toNode = this._createTransitionNode(targetView);
-				this._transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, contentNode, this._domRoot);
+				let transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, contentNode, this._domRoot);
 				connection.node.onLoad(contentNode);
 				this._initArrows(toNode, connection.node);
 				this._setDisplayPath(path);
 
+				this._transitionNodes = [ transitionNodeFrom, transitionNodeTo ];
+
 				this._resizePathView();
 			}
 			else {
-				this._transitioning = false;
+				this._setTransitioning(false);
 				throw new Error('Cannot transistion to unconnected location from current location');
 			}
 		}
@@ -355,20 +390,16 @@ export class NavController {
 		}
 	}
 
-	_getTransitionNodeCollection() {
-		return [this._transitionNodeFrom, this._transitionNodeTo];
-	}
-
 	_updateTransition(dt) {
 		if ( this._transitioning ) {
 			let windowSize = GetElementSize(document.body);
-			let transitionDT = dt/this._transitionTime;
+			let transitionDT = dt/this._curTransitionTime;
 			this._transitionT += transitionDT;
 			if ( this._transitionT >= 1 ) {
 				this._endTransition();
 			}
 			else {
-				let transitionNodes = this._getTransitionNodeCollection();
+				let transitionNodes = this._transitionNodes;
 				for(let tNode of transitionNodes) {
 					tNode.interpolate(this._transitionT);
 				}
@@ -377,17 +408,19 @@ export class NavController {
 	}
 
 		_endTransition() {
-			this._transitioning = false;
-			this._transitioningSubject.next(false);
-			this._transitionNodeFrom.navNode.onUnload();
+			this._setTransitioning(false);
+			if ( this._transitionNodes.length > 1 ) {
+				this._transitionNodes[0].navNode.onUnload();
+			}
 
-			this._transitionNodeTo.end();
+			let endTransitionNode = this._transitionNodes[this._transitionNodes.length-1];
+			endTransitionNode.end();
 
-			this._append(this._domRoot, this._transitionNodeTo.node);
-			this._domRoot.removeChild(this._transitionNodeFrom.node);
-			this._domRoot.removeChild(this._transitionNodeTo.node);
-			this._transitionNodeFrom = null;
-			this._transitionNodeTo = null;
+			this._append(this._domRoot, endTransitionNode.node);
+			for( let transitionNode of this._transitionNodes ) {
+				this._domRoot.removeChild(transitionNode.node);
+			}
+			this._transitionNodes = null;
 		}
 }
 

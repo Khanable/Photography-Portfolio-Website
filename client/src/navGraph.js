@@ -11,7 +11,7 @@ import * as ContactHtml from './contact.html';
 import * as CVHtml from './cv.html';
 import * as LogoSvg from './logo.svg';
 
-const Location = {
+export const Location = {
 	Index: 0,
 	About: 1,
 	Contact: 2,

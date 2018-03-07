@@ -60,6 +60,7 @@ export class PhotoNode extends NavNode {
 		super.onUnload();
 		this._subscriptions.forEach( e => e.unsubscribe() );
 		this._imageGL.destroy();
+		this._imageGL = null;
 	}
 
 }
