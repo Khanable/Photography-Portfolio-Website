@@ -13,9 +13,10 @@ class Draw {
 
 export class GLRenderer {
 	constructor() {
-		this._renderer = new WebGLRenderer( {alpha: true } );
+		this._renderer = new WebGLRenderer( { alpha: true, depth: false } );
 		this._renderer.setPixelRatio(window.devicePixelRatio);
-		//this._renderer.autoClear = false;
+		this._renderer.autoClear = false;
+		this._renderer.sortObjects = false;
 
 		this._draws = [];
 
@@ -28,6 +29,7 @@ export class GLRenderer {
 
 	_render(dt) {
 		this._renderer.setScissorTest(false);
+		this._renderer.setClearColor(new Color(0, 0, 0), 1);
 		this._renderer.clear();
 		this._renderer.setScissorTest(true);
 		let draws = this._draws.sort( (a, b) => b.layer-a.layer );

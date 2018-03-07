@@ -8,6 +8,7 @@ import { GetElementSize, GetElementRect } from './util.js';
 import { GL } from './gl.js';
 import { UpdateController } from './update.js';
 import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial } from 'three';
+import { MeshBasicMaterial } from 'three';
 import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
 import { Vector2 } from './vector.js';
 
@@ -53,14 +54,15 @@ void main() {
 	vec4 texColor4 = texture2D(tex, texCoord);
 	vec3 texColor = vec3(texColor4.r, texColor4.g, texColor4.b);
 	vec4 res = texColor4;
-	if ( saturation == vec3(1, 1, 1) ) {
+	if ( saturation != vec3(1, 1, 1) ) {
 		float mag = length(texColor);
 		//Saturated Negative
 		//vec3 dir = normalize(saturation);
 		//res = vec4(dir*mag, mag);
 		
-		//Black White
-		res = vec4(texColor, 0);
+		//Black White Negative
+		float color = 1.0 - mag;
+		res = vec4(vec3(color, color, color), color);
 
 	}
 	gl_FragColor = res;
@@ -103,6 +105,7 @@ export class ImageGL {
 			vertexShader: ImageGLVertexShader,
 			fragmentShader: ImageGLFragmentShader,
 		} );
+		material.transparent = true;
 		let geometry = new PlaneBufferGeometry(1, 1);
 		this._mesh = new Mesh(geometry, material);
 		this._scene.add(this._mesh);

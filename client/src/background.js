@@ -16,16 +16,17 @@ void main() {
 `;
 const Fragment = `
 
-uniform float focalLength;
+uniform float strength;
 uniform vec3 lightColor;
-uniform float fallOff;
+uniform float fallOffFactor;
 
 varying vec2 texCoord;
 
 void main() {
 	float centreDistance = distance(vec2(0.5, 0.5), texCoord);
-	float invertedDistance = 1.0-centreDistance;
-	vec3 resultantColor = lightColor*pow(invertedDistance, fallOff)*focalLength;
+	float invertedDistance = pow(1.0-centreDistance, fallOffFactor);
+	float intensity = strength / 4.0*3.14159265359*pow(invertedDistance, 2.0);
+	vec3 resultantColor = lightColor*intensity;
 	gl_FragColor = vec4(resultantColor, 1);
 }
 `;
@@ -33,11 +34,11 @@ void main() {
 
 const Settings = {
 	lightColor: new Color(1, 0.839, 0.667),
-	fallOff: 4,
-	focalLength: 2.5,
+	fallOffFactor: 3.0,
+	strength: 1.5,
 	flickerTime: new Vector2(0.16, 0.32),
 	flickerResolveTime: new Vector2(6, 12),
-	flickerFallOff: new Vector2(3, 5),
+	flickerFallOff: new Vector2(0, 1),
 }
 
 
@@ -55,8 +56,8 @@ export class Background {
 		this._nFlickerFallOffE = 0;
 		this._uniforms = {
 			lightColor: { value: Settings.lightColor },
-			focalLength: { value: Settings.focalLength },
-			fallOff: { value: Settings.fallOff },
+			strength: { value: Settings.strength },
+			fallOffFactor: { value: Settings.fallOffFactor },
 		};
 		let material = new ShaderMaterial( {
 			uniforms: this._uniforms,
@@ -115,13 +116,13 @@ export class Background {
 		if ( this._t >= this._nFlickerTime && this._t < this._nFlickerResolve ) {
 			let t = this._t - this._nFlickerTime;
 			let e = this._nFlickerResolve - this._nFlickerTime;
-			this._uniforms.fallOff.value = this._lerpParabola(t/e, Settings.fallOff, this._nFlickerFallOffE);
+			this._uniforms.strength.value = this._lerpParabola(t/e, Settings.strength, this._nFlickerFallOffE);
 		}
 		else if ( this._t >= this._nFlickerResolve ) {
 			this._nFlickerTime = this._t+RandomRange(Settings.flickerTime.x, Settings.flickerTime.y);
 			this._nFlickerResolve = this._nFlickerTime+RandomRange(Settings.flickerResolveTime.x, Settings.flickerResolveTime.y);
 			this._nFlickerFallOffE = RandomRange(Settings.flickerFallOff.x, Settings.flickerFallOff.y);
-			this._uniforms.fallOff.value = Settings.fallOff;
+			this._uniforms.strength.value = Settings.strength;
 		}
 
 		GL.draw(this._scene, this._camera, GetElementRect(this._domRoot), 0);
