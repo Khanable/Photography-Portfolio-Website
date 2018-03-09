@@ -52,18 +52,12 @@ varying vec2 texCoord;
 
 void main() {
 	vec4 texColor = texture2D(tex, texCoord);
-	float mag = length(texColor);
+	float mag = length(vec3(texColor));
 	float negColorV = 1.0 - mag;
 	vec4 negColor = vec4(-negColorV, -negColorV, -negColorV, negColorV);
 	gl_FragColor = mix(negColor, texColor, strength);
 }
 `;
-
-const Settings = {
-	saturation: new Color(1, 0.839, 0.667),
-}
-
-const FullSaturation = new Color(1, 1, 1);
 
 export const Resize = function(containerRect, elementSize) {
 	let containerSize = containerRect.size;
@@ -78,6 +72,7 @@ export const Resize = function(containerRect, elementSize) {
 }
 
 const ImageGLState = {
+	Created: 4,
 	TransitionIn: 0,
 	TransitionInComplete: 1,
 	TransitionOut: 2,
@@ -94,12 +89,14 @@ export class ImageGL {
 		this._camera = new OrthographicCamera( -0.5, 0.5, 0.5, -0.5, 0, 1 );
 		this._scene = new Scene();
 		this._mesh = null;
-		this._curState = ImageGLState.TransitionIn;
+		this._curState = ImageGLState.Created;
+		this._transitioning = false;
 		this._t = 0;
 		this._nStateEnd = 0;
+		this._stateTransitionOutStrengthStart = 0;
 		this._subscriptions = [];
 		this._uniforms = {
-			strength: { value: 1 },
+			strength: { value: 0 },
 			tex: { value: null },
 		};
 		let material = new ShaderMaterial( {
@@ -112,29 +109,47 @@ export class ImageGL {
 		this._mesh = new Mesh(geometry, material);
 		this._scene.add(this._mesh);
 
-		this._subscriptions.push(navController.transitioning.subscribe( (state) => {
-			if ( state && this._curState == ImageGLState.TransitionInComplete ) {
-				this._curState = ImageGLState.TransitionOut;
-				this._nStateEnd = this._t+ImageStateTransitionTime;
-			}
-		}));
-
 		this._loader = new TextureLoader();
 		this._loader.load(url, (texture) => {
 			this._uniforms.tex.value = texture;
 			texture.minFilter = LinearFilter;
 			this._loaded = true;
 			this._loadedSubject.next();
-			this._nStateEnd = this._t+ImageStateTransitionTime;
 		});
 
 		UpdateController.updateSubject.subscribe( this._update.bind(this) );
+
+		navController.transitioning.subscribe( state => {
+			this._transitioning = state;
+		});
+	}
+
+	_setStateTransitionIn() {
+		this._curState = ImageGLState.TransitionIn;
+		this._nStateEnd = this._t+ImageStateTransitionTime;
+	}
+	_setStateTrasitionInComplete() {
+		this._uniforms.strength.value = 1;
+		this._curState = ImageGLState.TransitionInComplete;
+	}
+	_setStateTransitionOut() {
+		this._curState = ImageGLState.TransitionOut;
+		this._nStateEnd = this._t+ImageStateTransitionTime;
+		this._stateTransitionOutStrengthStart = this._uniforms.strength.value;
+	}
+	_setStateTransitionOutComplete() {
+		this._uniforms.strength.value = 0;
+		this._curState = ImageGLState.TransitionOutComplete;
 	}
 
 	_update(dt) {
 		this._t+=dt;
 
 		if ( this._loaded && this._domRoot != null) {
+			if ( this._curState == ImageGLState.Created && !this._transitioning) {
+				this._setStateTransitionIn();
+			}
+
 			if ( this._curState == ImageGLState.TransitionIn ) {
 				if ( this._t <= this._nStateEnd ) {
 					let start = this._nStateEnd-ImageStateTransitionTime;
@@ -142,8 +157,7 @@ export class ImageGL {
 					this._uniforms.strength.value = ThreeMath.lerp(0, 1, t/ImageStateTransitionTime);
 				}
 				else {
-					this._uniforms.strength.value = 1;
-					this._curState = ImageGLState.TransitionInComplete;
+					this._setStateTrasitionInComplete();
 				}
 			}
 
@@ -151,11 +165,10 @@ export class ImageGL {
 				if ( this._t <= this._nStateEnd ) {
 					let start = this._nStateEnd-ImageStateTransitionTime;
 					let t = this._t - start;
-					this._uniforms.strength.value = ThreeMath.lerp(1, 0, t/ImageStateTransitionTime);
+					this._uniforms.strength.value = ThreeMath.lerp(this._stateTransitionOutStrengthStart, 0, t/ImageStateTransitionTime);
 				}
 				else {
-					this._uniforms.strength.value = 0;
-					this._curState = ImageGLState.TransitionOutComplete;
+					this._setStateTransitionOutComplete();
 				}
 			}
 
@@ -165,6 +178,14 @@ export class ImageGL {
 			let rect = Resize(containerRect, imgSize);
 			GL.draw(this._scene, this._camera, rect, 100);
 		}
+	}
+
+	resize() {
+		this._setStateTrasitionInComplete();
+	}
+
+	unload() {
+		this._setStateTransitionOut();
 	}
 
 	destroy() {

@@ -80,11 +80,12 @@ export class CategoryNode extends NavNode {
 		this._loadView();
 	}
 
-	onResize(domNode) {
-		super.onResize(domNode);
+	onResize() {
+		super.onResize();
 
 		this._setLoading();
 		this._loadView();
+		this._images.forEach( e => e.resize() );
 	}
 
 	_setLoading() {
@@ -93,7 +94,11 @@ export class CategoryNode extends NavNode {
 	}
 
 	onUnload() {
-		super.onUnload();
+		this._images.forEach( e => e.unload() );
+	}
+
+	onDestroy() {
+		super.onDestroy();
 		this._images.forEach( e => e.destroy() );
 		this._subscriptions.forEach( e => e.unsubscribe() );
 		this._images = null;

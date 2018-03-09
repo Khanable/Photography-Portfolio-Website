@@ -305,7 +305,7 @@ export class NavController {
 	_load(navNode) {
 		this._init();
 		if ( this._curNode != null ) {
-			this._curNode.onUnload();
+			this._curNode.onDestroy();
 		}
 		let contentNode = this._domRoot.querySelector(ContentSelector);
 		contentNode.innerHTML = '';
@@ -364,6 +364,7 @@ export class NavController {
 
 				let fromNode = this._createTransitionNode(this._domRoot);
 				let transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode, this._domRoot);
+				fromNavNode.onUnload();
 
 				let targetView = this._domHost.cloneNode(true);
 				let contentNode = targetView.querySelector(ContentSelector);
@@ -410,7 +411,7 @@ export class NavController {
 		_endTransition() {
 			this._setTransitioning(false);
 			if ( this._transitionNodes.length > 1 ) {
-				this._transitionNodes[0].navNode.onUnload();
+				this._transitionNodes[0].navNode.onDestroy();
 			}
 
 			let endTransitionNode = this._transitionNodes[this._transitionNodes.length-1];
@@ -556,6 +557,7 @@ export class NavNode {
 		this._onLoadSubject = new Subject();
 		this._onUnloadSubject = new Subject();
 		this._onResizeSubject = new Subject();
+		this._onDestroySubject = new Subject();
 		this._url = url;
 	}
 
@@ -639,8 +641,11 @@ export class NavNode {
 	onUnload() {
 		this._onUnloadSubject.next(this);
 	}
-	onResize(domNode) {
-		this._onResizeSubject.next(new NavNodeEventSubscription(this, domNode));
+	onResize() {
+		this._onResizeSubject.next(this);
+	}
+	onDestroy() {
+		this._onDestroySubject.next(this);
 	}
 }
 

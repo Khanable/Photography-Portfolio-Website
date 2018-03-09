@@ -49,15 +49,20 @@ export class PhotoNode extends NavNode {
 		this._loadGL();
 	}
 
-	onResize(domNode) {
-		super.onResize(domNode);
+	onResize() {
+		super.onResize();
 
 		this._setLoading();
 		this._loadGL();
+		this._imageGL.resize();
 	}
 
 	onUnload() {
-		super.onUnload();
+		this._imageGL.unload();
+	}
+
+	onDestroy() {
+		super.onDestroy();
 		this._subscriptions.forEach( e => e.unsubscribe() );
 		this._imageGL.destroy();
 		this._imageGL = null;
