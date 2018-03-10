@@ -1,6 +1,0 @@
-bg: 
-fg: rgb(68, 52, 45)
-hl: rgb(252, 243, 234)
-projector light: rgb(255, 214, 170)
-heading font: 
-text font:

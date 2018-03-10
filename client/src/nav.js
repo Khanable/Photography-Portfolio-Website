@@ -1,7 +1,7 @@
 import * as CubicHermiteSpline from 'cubic-hermite-spline';
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
-import { SizeTextShortSide, AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
+import { SizeText, AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
 import { Subject, ReplaySubject } from 'rxjs';
 import { Matrix3 } from './matrix';
 import './util.js';
@@ -17,6 +17,7 @@ const ArrowSelector = '.navArrow';
 const NoArrowNavClass = 'navNoArrowNav';
 const ArrowNavClass = 'navArrowNav';
 const NavWindowPathSelector = '#navPathMask';
+const NavWindowSlideMaskSelector = '#navSlideMask';
 
 const NavSlideControlSize = 60;
 const NavSlideBendAmount = 30;
@@ -144,20 +145,26 @@ export class NavController {
 
 	_resizePathView() {
 		let paths = [];
+		let slideMasks = [];
 
 		if ( !this._transitioning && this._curNode != null ) {
 			let path = this._domRoot.querySelector(NavWindowPathSelector);
+			let slideMask = this._domRoot.querySelector(NavWindowSlideMaskSelector);
 			paths.push(path);
+			slideMasks.push(slideMask);
 		}
 		else {
 			let transitionNodes = this._transitionNodes;
 			for(let tNode of transitionNodes) {
 				let path = tNode.node.querySelector(NavWindowPathSelector);
+				let slideMask = tNode.node.querySelector(NavWindowSlideMaskSelector);
 				paths.push(path);
+				slideMasks.push(slideMask);
 			}
 		}
 
-		let boundsSize = GetElementSize(this._domRoot).sub(NavSlideControlSize*2);
+		let windowSize = GetElementSize(this._domRoot);
+		let boundsSize = windowSize.sub(NavSlideControlSize*2);
 		let right = new Vector2(boundsSize.x, 0);
 		let top = new Vector2(0, boundsSize.y);
 		let scale = boundsSize.x < boundsSize.y ? boundsSize.x : boundsSize.y;
@@ -202,12 +209,17 @@ export class NavController {
 		}
 		paths.forEach( e => e.setAttribute('d', defs.join(' ')) );
 
-
 		//set text size
 		let arrows = this._domRoot.querySelectorAll(ArrowSelector);
 		for( let arrow of arrows ) {
-			SizeTextShortSide(arrow, NavArrowFontSize); 
+			SizeText(arrow, NavArrowFontSize, true); 
 		}
+
+		//Fix for slideMask not auto scaling to correct 100% width/height for some reason
+		slideMasks.forEach( e => { 
+			e.setAttribute('width', windowSize.x);
+			e.setAttribute('height', windowSize.y);
+		});
 	}
 
 

@@ -13,10 +13,11 @@ else {
 	throw new Error('String.format already exists, cannot extend');
 }
 
-export const SizeTextShortSide = function(domNode, fontPercentage) {
+export const SizeText = function(domNode, fontPercentage, shortSide) {
 	let windowSize = GetWindowSize();
-	let short = windowSize.x > windowSize.y ? windowSize.y : windowSize.x;
-	domNode.setAttribute('style', 'font-size: {0}px;'.format(short*(fontPercentage/100)));
+	let sorted = Array.from(windowSize).sort( (a,b) => a-b );
+	let side = shortSide ? sorted[0] : sorted[1];
+	domNode.setAttribute('style', 'font-size: {0}px;'.format(side*(fontPercentage/100)));
 }
 
 export const AppendAttribute = function(node, attr, value) {

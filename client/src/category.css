@@ -1,21 +1,41 @@
-#categoryMain, .categoryCell {
+#categoryMain, #categoryPhoto, .categoryCell {
 	align-items: center;
 	justify-content: center;
 }
-#categoryMain, .categoryRow, .categoryCell {
+#categoryMain, #categoryPhoto, #categoryText, .categoryRow, .categoryCell {
 	display: flex;
 }
 
 #categoryMain {
+	position: relative;
+}
+
+#categoryText, #categoryPhoto {
+	position: absolute;
+}
+
+#categoryPhoto {
+	right: 8%;
+	left: 25%;
+	height: 100%;
+}	
+
+#categoryMain, .categoryCell {
 	width: 100%;
 	height: 100%;
+}
+
+#categoryPhoto {
 	flex-flow: column nowrap;
 }
 
 .categoryRow {
 	flex-flow: row nowrap;
 }
-.categoryCell {
-	width: 100%;
-	height: 100%;
+
+#categoryText {
+	right: 25%;
+	left: 8%;
+	font-family: Header;
+	color: rgba(0, 0, 0, 0.8);
 }

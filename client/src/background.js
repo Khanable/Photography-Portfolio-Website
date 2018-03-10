@@ -15,8 +15,8 @@ void main() {
 `;
 const Fragment = `
 
-const float wallEffectNoiseDistance = 85.0;
-const float wallEffectFactor = 1.5;
+const float wallEffectNoiseDistance = 125.0;
+const float wallEffectFactor = 1.0;
 const vec3 lightColor = vec3(1, 0.839, 0.667);
 const float fallOffFactor = 3.0;
 

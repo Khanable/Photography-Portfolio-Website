@@ -2,7 +2,7 @@ import { NavGraph, NavNode, Dir } from './nav.js';
 import { PhotoNode } from './photoNode.js';
 import { Resize } from './image.js';
 import { Vector2 } from './vector.js';
-import { SizeTextShortSide, GetElementRect, GetElementSize, AppendDomNodeChildren, LoadHtml } from './util.js';
+import { SizeText, GetElementRect, GetElementSize, AppendDomNodeChildren, LoadHtml } from './util.js';
 import { CategoryNode } from './categoryNode.js';
 import * as AboutHtml from './about.html';
 import * as IndexHtml from './index.html';
@@ -36,7 +36,7 @@ const AboutNode = new NavNode(Location.About, AboutHtml, 'about');
 const ContactNode = new NavNode(Location.Contact, ContactHtml, 'contact');
 const CVNode = new NavNode(Location.CV, CVHtml, 'cv');
 const ServicesNode = new NavNode(Location.Services, CVHtml, 'cv');
-const Category1 = new CategoryNode(Location.Category1, 'category1', 2, '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg');
+const Category1 = new CategoryNode(Location.Category1, 'category1', 2, 'Category 1', 25, '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg');
 const Photo1 = new PhotoNode(Location.Photo1, 'photo1', '/static/testImage.jpg');
 
 
@@ -62,7 +62,7 @@ const IndexNodeLogo = {
 	},
 	resize: function() {
 		let size = Resize(GetElementRect(this._container), LogoSize);
-		SizeTextShortSide(this._logoText, LogoFontSize)
+		SizeText(this._logoText, LogoFontSize, true)
 		this._logo.setAttribute('width',size.w);
 		this._logo.setAttribute('height',size.h);
 	},
