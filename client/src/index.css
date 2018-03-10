@@ -12,8 +12,8 @@
 	position: absolute;
 	width: auto;
 	height: auto;
-	font-size: 22px;
 	bottom: 7%;
+	font-family: Header;
 }
 
 #indexContainer {

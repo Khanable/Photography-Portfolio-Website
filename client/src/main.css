@@ -15,3 +15,12 @@ body {
 
 #mainBackground {
 }
+
+@font-face {
+	font-family: 'Header';
+	src: url('/static/fonts/header.ttf');
+}
+@font-face {
+	font-family: 'Text';
+	src: url('/static/fonts/text.ttf');
+}

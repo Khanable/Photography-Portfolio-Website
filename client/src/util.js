@@ -13,8 +13,18 @@ else {
 	throw new Error('String.format already exists, cannot extend');
 }
 
+export const SizeTextShortSide = function(domNode, fontPercentage) {
+	let windowSize = GetWindowSize();
+	let short = windowSize.x > windowSize.y ? windowSize.y : windowSize.x;
+	domNode.setAttribute('style', 'font-size: {0}px;'.format(short*(fontPercentage/100)));
+}
+
 export const AppendAttribute = function(node, attr, value) {
-	node.setAttribute(attr, node.getAttribute(attr)+value);
+	let prev = node.getAttribute(attr);
+	if ( prev == null ) {
+		prev = '';
+	}
+	node.setAttribute(attr, prev+value);
 }
 
 export const GetElementSize = function(domElement) {

@@ -2,7 +2,7 @@ import { NavGraph, NavNode, Dir } from './nav.js';
 import { PhotoNode } from './photoNode.js';
 import { Resize } from './image.js';
 import { Vector2 } from './vector.js';
-import { GetElementRect, GetElementSize, AppendDomNodeChildren, LoadHtml } from './util.js';
+import { SizeTextShortSide, GetElementRect, GetElementSize, AppendDomNodeChildren, LoadHtml } from './util.js';
 import { CategoryNode } from './categoryNode.js';
 import * as AboutHtml from './about.html';
 import * as IndexHtml from './index.html';
@@ -21,10 +21,17 @@ export const Location = {
 	Photo1: 6,
 }
 
+
+const IndexDom = LoadHtml(IndexHtml);
+const IndexLogoContainerSelector = '#indexLogoContainer';
+const IndexLogoTextSelector = '#indexLogoText';
+const LogoFontSize = 5;
 const LogoDom = LoadHtml(LogoSvg);
 const LogoSize = new Vector2(200, 200);
+AppendDomNodeChildren(IndexDom.querySelector(IndexLogoContainerSelector), LogoDom);
 
-const IndexNode = new NavNode(Location.Index, IndexHtml, 'index');
+
+const IndexNode = new NavNode(Location.Index, IndexDom, 'index');
 const AboutNode = new NavNode(Location.About, AboutHtml, 'about');
 const ContactNode = new NavNode(Location.Contact, ContactHtml, 'contact');
 const CVNode = new NavNode(Location.CV, CVHtml, 'cv');
@@ -43,15 +50,22 @@ IndexNode.addConnection(Dir.South, Category1, 'Gallery', 'Index');
 Photo1.addConnection(Dir.North, Category1, 'Category1', 'Photo1');
 
 
-const IndexNodeLogo = function(event, create) {
-	let logoContainer = event.domNode.querySelector('#indexLogoContainer');
-	if ( create ) {
-		AppendDomNodeChildren(logoContainer, LogoDom.cloneNode(true));
-	}
-	let size = Resize(GetElementRect(logoContainer), LogoSize);
-	let logo = logoContainer.querySelector('svg');
-	logo.setAttribute('width',size.w);
-	logo.setAttribute('height',size.h);
+const IndexNodeLogo = {
+	_container: null,
+	_logo: null,
+	_logoText: null,
+	load: function(event) {
+		this._logoText = event.domNode.querySelector(IndexLogoTextSelector);
+		this._container = event.domNode.querySelector(IndexLogoContainerSelector);
+		this._logo = this._container.querySelector('svg');
+		this.resize();
+	},
+	resize: function() {
+		let size = Resize(GetElementRect(this._container), LogoSize);
+		SizeTextShortSide(this._logoText, LogoFontSize)
+		this._logo.setAttribute('width',size.w);
+		this._logo.setAttribute('height',size.h);
+	},
 }
-IndexNode.onLoadSubject.subscribe( (event) => IndexNodeLogo(event, true));
-IndexNode.onResizeSubject.subscribe( (event) => IndexNodeLogo(event, false));
+IndexNode.onLoadSubject.subscribe( IndexNodeLogo.load.bind(IndexNodeLogo) );
+IndexNode.onResizeSubject.subscribe( IndexNodeLogo.resize.bind(IndexNodeLogo) );

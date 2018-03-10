@@ -1,7 +1,7 @@
 import * as CubicHermiteSpline from 'cubic-hermite-spline';
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
-import { AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
+import { SizeTextShortSide, AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
 import { Subject, ReplaySubject } from 'rxjs';
 import { Matrix3 } from './matrix';
 import './util.js';
@@ -13,12 +13,14 @@ const ArrowNorthSelector = '#navArrowN';
 const ArrowSouthSelector = '#navArrowS';
 const ArrowEastSelector = '#navArrowE';
 const ArrowWestSelector = '#navArrowW';
+const ArrowSelector = '.navArrow';
 const NoArrowNavClass = 'navNoArrowNav';
 const ArrowNavClass = 'navArrowNav';
 const NavWindowPathSelector = '#navPathMask';
 
 const NavSlideControlSize = 60;
 const NavSlideBendAmount = 30;
+const NavArrowFontSize = 2.5;
 const TransitionNodeBaseStyle = 'position:absolute;height:100%;width:100%;margin:0px;';
 const TransitionNodePositionFormat = 'top:{0}px;left:{1}px;';
 const CornerCurveFactor = 0.12;
@@ -35,13 +37,12 @@ export class TransitionCurve {
 }
 
 class TransitionNode {
-	constructor(node, incomming, direction, curve, navNode, domContentNode, entryDomNode) {
+	constructor(node, incomming, direction, curve, navNode, entryDomNode) {
 		this._node = node;
 		this._incomming = incomming;
 		this._direction = direction;
 		this._curve = curve;
 		this._navNode = navNode;
-		this._domContentNode = domContentNode;
 		this._domRoot = entryDomNode;
 
 		this._setTransitionNodeStyle(this._getStartPos());
@@ -74,9 +75,6 @@ class TransitionNode {
 	}
 	get navNode() {
 		return this._navNode;
-	}
-	get domContentNode() {
-		return this._domContentNode;
 	}
 
 	end() {
@@ -203,17 +201,24 @@ export class NavController {
 			defs.push('C {0} {1}, {2} {3}, {4} {5}'.format(lpCornerHandlePoint.x, lpCornerHandlePoint.y, rpCornerHandlePoint.x, rpCornerHandlePoint.y, peek.x, peek.y));
 		}
 		paths.forEach( e => e.setAttribute('d', defs.join(' ')) );
+
+
+		//set text size
+		let arrows = this._domRoot.querySelectorAll(ArrowSelector);
+		for( let arrow of arrows ) {
+			SizeTextShortSide(arrow, NavArrowFontSize); 
+		}
 	}
 
 
 	_resize() {
 		if ( !this._transitioning && this._curNode != null ) {
-			this._curNode.onResize(this._curNodeDomContent);
+			this._curNode.onResize();
 		}
 		else {
 			let transitionNodes = this._transitionNodes;
 			for(let tNode of transitionNodes) {
-				tNode.navNode.onResize(tNode.domContentNode);
+				tNode.navNode.onResize();
 			}
 		}
 		this._resizePathView();
@@ -341,7 +346,7 @@ export class NavController {
 		this._setTransitioning(true);
 		this._curTransitionTime = this._animatedLoadTransitionSpeed;
 		let domNode = this._createTransitionNode(this._domRoot);
-		this._transitionNodes = [new TransitionNode(domNode, true, Math.floor(RandomRange(0, 4)), this._transitionCurve, navNode, this._curNodeDomContent, this._domRoot)];
+		this._transitionNodes = [new TransitionNode(domNode, true, Math.floor(RandomRange(0, 4)), this._transitionCurve, navNode, this._domRoot)];
 	}
 
 	_createTransitionNode(fromNode) {
@@ -363,7 +368,7 @@ export class NavController {
 				let fromContentDomNode = this._curNodeDomContent;
 
 				let fromNode = this._createTransitionNode(this._domRoot);
-				let transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, fromContentDomNode, this._domRoot);
+				let transitionNodeFrom = new TransitionNode(fromNode, false, connection.dir, this._transitionCurve, fromNavNode, this._domRoot);
 				fromNavNode.onUnload();
 
 				let targetView = this._domHost.cloneNode(true);
@@ -372,7 +377,7 @@ export class NavController {
 				this._curNodeDomContent = contentNode;
 				this._append(contentNode, connection.node.viewDom);
 				let toNode = this._createTransitionNode(targetView);
-				let transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, contentNode, this._domRoot);
+				let transitionNodeTo = new TransitionNode(toNode, true, connection.dir, this._transitionCurve, connection.node, this._domRoot);
 				connection.node.onLoad(contentNode);
 				this._initArrows(toNode, connection.node);
 				this._setDisplayPath(path);
@@ -553,7 +558,16 @@ export class NavNode {
 		this._location = location;
 		this._connections = [];
 		this._displayConnections = new Map();
-		this._viewDom = LoadHtml(viewHtml);
+		this._viewDom = null;
+		if ( typeof(viewHtml) == 'string' ) {
+			this._viewDom = LoadHtml(viewHtml);
+		}
+		else if ( viewHtml instanceof HTMLElement ) {
+			this._viewDom = viewHtml.cloneNode(true);
+		}
+		else {
+			throw new Error('Unable to parse viewHtml as not correct type');
+		}
 		this._onLoadSubject = new Subject();
 		this._onUnloadSubject = new Subject();
 		this._onResizeSubject = new Subject();
