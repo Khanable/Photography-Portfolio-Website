@@ -86,7 +86,7 @@ class TransitionNode {
 }
 
 export class NavController {
-	constructor(navGraph, transitionTime, transitionCurve, domElement, baseHtml, shouldPerformAnimatedLoadFunc, animatedLoadTransitionSpeed) {
+	constructor(navGraph, transitionTime, transitionCurve, domElement, baseHtml, shouldPerformAnimatedLoadFunc, animatedLoadTransitionSpeed, swipeThresholdFactor) {
 		this._navGraph = navGraph;
 		this._curNode = null;
 		this._curNodeDomContent = null;
@@ -97,6 +97,11 @@ export class NavController {
 		this._domRoot = domElement;
 		this._shouldPerformAnimatedLoad = shouldPerformAnimatedLoadFunc;
 		this._animatedLoadCallback = null;
+
+		this._startedSwipe = false;
+		this._swipeStartPos = null;
+		this._swipeT = 0;
+		this._swipeThresholdFactor = swipeThresholdFactor;
 
 		this._transitioning = false;
 		this._transitionNodes = null;
@@ -137,6 +142,39 @@ export class NavController {
 		}
 
 		window.addEventListener('resize', this._resize.bind(this));
+
+		let swipeEventListener = function(method) {
+			return function(event) {
+				method(new Vector2(event.clientX, event.clientY))
+			}
+		}
+
+		this._domRoot.addEventListener('mousedown', swipeEventListener(this._swipeStart.bind(this)));
+		this._domRoot.addEventListener('mousemove', swipeEventListener(this._swipeMove.bind(this)));
+		this._domRoot.addEventListener('mouseup', swipeEventListener(this._swipeEnd.bind(this)));
+		this._domRoot.addEventListener('mouseleave', swipeEventListener(this._swipeEnd.bind(this)));
+	}
+
+	_swipeStart(pos) {
+		this._startedSwipe = true;
+		this._swipeStartPos = pos;
+	}
+	_swipeEnd(pos) {
+		this._startedSwipe = false;
+	}
+	_swipeMove(pos) {
+		if ( this._startedSwipe) {
+			let elementSize = GetElementSize(this._domRoot);
+			let thresholdSize = elementSize.mul(this._swipeThresholdFactor);
+			let maxSwipeRadius = elementSize.x < elementSize.y ? elementSize.x : elementSize.y;
+			let thresholdRadius = thresholdSize.x < thresholdSize.y ? thresholdSize.x : thresholdSize.y;
+			let swipeLength = pos.sub(this._swipeStartPos).magnitude;
+
+			if ( swipeLength >= thresholdRadius ) {
+				let diff = swipeLength - thresholdRadius;
+				this._swipeT = diff/maxSwipeRadius;
+			}
+		}
 	}
 
 	set animatedLoadCallback(v) {
