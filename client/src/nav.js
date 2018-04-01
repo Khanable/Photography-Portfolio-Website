@@ -33,7 +33,14 @@ export class TransitionCurve {
 	}
 
 	interpolate(t) {
-		return CubicHermiteSpline(t, this._points, this._tangents);
+		t = Math.max(0, Math.min(1, t));
+		if ( t > 0 && t < 1 ) {
+			//If 1 returns nan for some reason, work around.
+			return CubicHermiteSpline(t, this._points, this._tangents);
+		}
+		else {
+			return [t, t];
+		}
 	}
 }
 
@@ -86,7 +93,7 @@ class TransitionNode {
 }
 
 export class NavController {
-	constructor(navGraph, transitionTime, transitionCurve, domElement, baseHtml, shouldPerformAnimatedLoadFunc, animatedLoadTransitionSpeed, swipeThresholdFactor) {
+	constructor(navGraph, transitionTime, transitionCurve, domElement, baseHtml, shouldPerformAnimatedLoadFunc, animatedLoadTransitionSpeed, swipeThresholdFactor, swipeChangeSlideThresholdT) {
 		this._navGraph = navGraph;
 		this._curNode = null;
 		this._curNodeDomContent = null;
@@ -100,19 +107,22 @@ export class NavController {
 
 		this._startedSwipe = false;
 		this._swipeStartPos = null;
+		this._curSwipeDir = null;
 		this._swipeT = 0;
 		this._swipeThresholdFactor = swipeThresholdFactor;
+		this._swipeChangeSlideThresholdT = swipeChangeSlideThresholdT;
 
 		this._transitioning = false;
 		this._transitionNodes = null;
 		this._transitionT = 0;
+		this._transitionDir = 1;
 
 		this._transitioningSubject = new ReplaySubject(1);
 		this._transitioningSubject.next(false);
 
 		this._domHost = LoadHtml(baseHtml);
 
-		UpdateController.updateSubject.subscribe(this._updateTransition.bind(this));
+		UpdateController.updateSubject.subscribe(this._update.bind(this));
 		window.onpopstate = (event) => {
 			if ( event.state != undefined ) {
 				let location = event.state;
@@ -143,36 +153,107 @@ export class NavController {
 
 		window.addEventListener('resize', this._resize.bind(this));
 
+
+		//?If agent is mobile device
 		let swipeEventListener = function(method) {
 			return function(event) {
 				method(new Vector2(event.clientX, event.clientY))
 			}
 		}
-
+		//?Change to touch once testing done
+		//https://developer.mozilla.org/en-US/docs/Web/Events/touchstart
 		this._domRoot.addEventListener('mousedown', swipeEventListener(this._swipeStart.bind(this)));
 		this._domRoot.addEventListener('mousemove', swipeEventListener(this._swipeMove.bind(this)));
 		this._domRoot.addEventListener('mouseup', swipeEventListener(this._swipeEnd.bind(this)));
-		this._domRoot.addEventListener('mouseleave', swipeEventListener(this._swipeEnd.bind(this)));
 	}
 
+	_getSwipeT(pos) {
+		let rtn = 0;
+		let elementSize = GetElementSize(this._domRoot);
+		let thresholdSize = elementSize.mul(this._swipeThresholdFactor);
+		let maxSwipeRadius = elementSize.x < elementSize.y ? elementSize.x : elementSize.y;
+		let thresholdRadius = thresholdSize.x < thresholdSize.y ? thresholdSize.x : thresholdSize.y;
+		let swipeLength = pos.sub(this._swipeStartPos).magnitude();
+
+		if ( swipeLength >= thresholdRadius ) {
+			let diff = swipeLength - thresholdRadius;
+			rtn = diff/maxSwipeRadius;
+		}
+		return rtn;
+	}
+	_getSwipeDir(startPos, curPos) {
+		let dir = startPos.sub(curPos);
+		let rtn = 0;
+		let closest = dir.angle(DirVector[rtn]);
+		for(let i = 1; i < DirVector.length; i++) {
+			let targetVector = DirVector[i];
+			let angle = dir.angle(targetVector);
+			if ( closest == null || closest > angle ) {
+				rtn = i;
+				closest = angle;
+			}
+		}
+		return rtn;
+	}
+	_swipeNeedToCreateTransitionNode() {
+		let connection = this._curNode.connections.find( e => e.dir == this._curSwipeDir );
+		if ( this._swipeT > 0 && this._curSwipeDir != this._lastSwipeDir && connection != undefined ) {
+			return true;
+		}
+		return false;
+	}
+	_swipeCreateTransitionNode() {
+		if ( this._transitioning ) {
+			this._endTransition();
+		}
+		let connection = this._curNode.connections.find( e => e.dir == this._curSwipeDir );
+		if ( connection != undefined ) {
+			let navNode = connection.node;
+			this._transition(this._curSwipeDir, this._getShortestPath(navNode));
+		}
+	}
+	_setCurSwipeDir(dir) {
+		if ( this._swipeT > 0 ) {
+			this._lastSwipeDir = this._curSwipeDir;
+			this._curSwipeDir = dir;
+		}
+	}
 	_swipeStart(pos) {
-		this._startedSwipe = true;
-		this._swipeStartPos = pos;
+		if ( !this._transitioning ) {
+			this._startedSwipe = true;
+			this._swipeStartPos = pos;
+			this._curSwipeDir = null;
+			this._lastSwipeDir = null;
+		}
+	}
+	_overSwipeChangeSlideThreshold(t) {
+		return this._swipeT > this._swipeChangeSlideThresholdT; 
 	}
 	_swipeEnd(pos) {
-		this._startedSwipe = false;
+		if ( this._startedSwipe ) {
+			this._startedSwipe = false;
+
+			this._setCurSwipeDir(this._getSwipeDir(this._swipeStartPos, pos));
+
+			if ( this._swipeNeedToCreateTransitionNode() ) {
+				this._swipeCreateTransitionNode();
+			}
+
+			this._transitionT = this._getSwipeT(pos);
+			this._transitionDir = this._overSwipeChangeSlideThreshold(this._transitionT) ? 1 : -1;
+			let endNavNodeIndex = this._overSwipeChangeSlideThreshold(this._transitionT) ? 1 : 0;
+			
+			this._pushHistory(this._getShortestPath(this._transitionNodes[endNavNodeIndex].navNode));
+		}
 	}
 	_swipeMove(pos) {
-		if ( this._startedSwipe) {
-			let elementSize = GetElementSize(this._domRoot);
-			let thresholdSize = elementSize.mul(this._swipeThresholdFactor);
-			let maxSwipeRadius = elementSize.x < elementSize.y ? elementSize.x : elementSize.y;
-			let thresholdRadius = thresholdSize.x < thresholdSize.y ? thresholdSize.x : thresholdSize.y;
-			let swipeLength = pos.sub(this._swipeStartPos).magnitude;
+		if ( this._startedSwipe ) {
+			this._swipeT = this._getSwipeT(pos);
 
-			if ( swipeLength >= thresholdRadius ) {
-				let diff = swipeLength - thresholdRadius;
-				this._swipeT = diff/maxSwipeRadius;
+			this._setCurSwipeDir(this._getSwipeDir(this._swipeStartPos, pos));
+
+			if ( this._swipeNeedToCreateTransitionNode() ) {
+				this._swipeCreateTransitionNode();
 			}
 		}
 	}
@@ -408,7 +489,8 @@ export class NavController {
 
 	_transition(dir, path) {
 		if ( !this._transitioning ) {
-		this._setTransitioning(true);
+			this._setTransitioning(true);
+			this._transitionDir = 1;
 
 			let targetNode = path[path.length-1].node;
 			let connection = this._curNode.connections.find( e => e.dir == dir && e.node == targetNode );
@@ -423,7 +505,6 @@ export class NavController {
 
 				let targetView = this._domHost.cloneNode(true);
 				let contentNode = targetView.querySelector(ContentSelector);
-				this._curNode = connection.node;
 				this._curNodeDomContent = contentNode;
 				this._append(contentNode, connection.node.viewDom);
 				let toNode = this._createTransitionNode(targetView);
@@ -446,38 +527,58 @@ export class NavController {
 		}
 	}
 
-	_updateTransition(dt) {
+	_updateTransition(dt, windowSize) {
 		if ( this._transitioning ) {
-			let windowSize = GetElementSize(document.body);
-			let transitionDT = dt/this._curTransitionTime;
-			this._transitionT += transitionDT;
-			if ( this._transitionT >= 1 ) {
-				this._endTransition();
+			if ( this._startedSwipe ) {
+				this._transitionT = this._swipeT;
 			}
 			else {
-				let transitionNodes = this._transitionNodes;
-				for(let tNode of transitionNodes) {
-					tNode.interpolate(this._transitionT);
-				}
+				let transitionDT = dt/this._curTransitionTime;
+				this._transitionT += transitionDT*this._transitionDir;
+			}
+
+			let transitionNodes = this._transitionNodes;
+			for(let tNode of transitionNodes) {
+				tNode.interpolate(this._transitionT);
+			}
+
+			if ( !this._startedSwipe && (this._transitionT >= 1  || this._transitionT <= 0) ) {
+				this._endTransition();
 			}
 		}
 	}
 
-		_endTransition() {
-			this._setTransitioning(false);
-			if ( this._transitionNodes.length > 1 ) {
+	_update(dt) {
+		let windowSize = GetElementSize(document.body);
+		this._updateTransition(dt, windowSize);
+	}
+
+	_endTransition() {
+		this._setTransitioning(false);
+		let endNodeIndex = 0;
+		if ( this._transitionNodes.length > 1 ) {
+			if ( this._transitionT >= 1 ) {
 				this._transitionNodes[0].navNode.onDestroy();
+				endNodeIndex = 1;
 			}
-
-			let endTransitionNode = this._transitionNodes[this._transitionNodes.length-1];
-			endTransitionNode.end();
-
-			this._append(this._domRoot, endTransitionNode.node);
-			for( let transitionNode of this._transitionNodes ) {
-				this._domRoot.removeChild(transitionNode.node);
+			else {
+				this._transitionNodes[1].navNode.onDestroy();
+				endNodeIndex = 0;
 			}
-			this._transitionNodes = null;
 		}
+
+		let endTransitionNode = this._transitionNodes[endNodeIndex];
+		this._curNode = this._transitionNodes[endNodeIndex].navNode;
+		endTransitionNode.end();
+
+
+		this._append(this._domRoot, endTransitionNode.node);
+		for( let transitionNode of this._transitionNodes ) {
+			this._domRoot.removeChild(transitionNode.node);
+		}
+		this._transitionNodes = null;
+	}
+
 }
 
 export class NavGraph {

@@ -15,13 +15,13 @@ void main() {
 `;
 const Fragment = `
 
-const float wallEffectNoiseDistance = 125.0;
+const float wallEffectNoiseDistanceFactor = 0.25;
 const float wallEffectFactor = 1.0;
 const vec3 lightColor = vec3(1, 0.839, 0.667);
 const float fallOffFactor = 3.0;
 
 uniform float strength;
-uniform float aspect;
+uniform vec2 resolution;
 varying vec2 texCoord;
 
 //https://github.com/stegu/webgl-noise
@@ -82,8 +82,10 @@ float cnoise(vec2 P)
 
 
 void main() {
+	float aspect = resolution.x/resolution.y;
+	float shortSide = resolution.x < resolution.y ? resolution.x : resolution.y;
 	vec2 st = texCoord.xy*aspect;
-	vec2 pos = st*wallEffectNoiseDistance;
+	vec2 pos = st*wallEffectNoiseDistanceFactor*shortSide;
 	float n = cnoise(pos);
 
 	float centreDistance = distance(vec2(0.5, 0.5), texCoord);
@@ -129,7 +131,7 @@ export class Background {
 		this._uniforms = {
 			strength: { value: Settings.strength },
 			fallOffFactor: { value: Settings.fallOffFactor },
-			aspect: { value: 1 },
+			resolution: { value: new ThreeVector2(1, 1) },
 		};
 		let material = new ShaderMaterial( {
 			uniforms: this._uniforms,
@@ -158,7 +160,7 @@ export class Background {
 		this._camera.updateProjectionMatrix();
 
 		let windowSize = GetWindowSize();
-		this._uniforms.aspect.value = windowSize.x/windowSize.y;
+		this._uniforms.resolution.value = new ThreeVector2(windowSize.x, windowSize.y);
 	}
 
 	_getViewFustrum() {
@@ -212,17 +214,6 @@ export class Background {
 		}
 
 		GL.draw(this._scene, this._camera, GetElementRect(this._domRoot), 0);
-	}
-
-	_lerpParabola(t, s, e) {
-		let p = Math.pow(t*2-1, 2);
-		let r = Math.abs(e-s);
-		let m = s < e ? s : e;
-		if ( s < e ) {
-			p*=-1;
-			m += r;
-		}
-		return m+p*r;
 	}
 
 }

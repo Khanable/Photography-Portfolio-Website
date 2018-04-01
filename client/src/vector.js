@@ -129,6 +129,12 @@ export class Vector2 {
 			throw ValueError;
 		}
 	}
+
+	angle(v) {
+		let a = this.normalize();
+		v = v.normalize();
+		return Math.acos(a.x*v.x+a.y*v.y/a.magnitude()*v.magnitude());
+	}
 }
 
 Vector2.One = new Vector2(1, 1);

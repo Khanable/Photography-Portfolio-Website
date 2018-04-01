@@ -12,10 +12,11 @@ import './nav.css';
 const SlideTransitionTime = 0.5;
 const AnimatedLoadSlideTransitionTime = 1.0;
 const SwipeThresholdFactor = 0.2;
+const SwipeChangeSlideThresholdT = 0.35;
 
 const SlideTransitionCurve = new TransitionCurve(
 	[new Vector2(0, 0), new Vector2(1, 0)],
-	[new Vector2(0, 0), new Vector2(0, 0)],
+	[new Vector2(1, 0), new Vector2(1, 0)],
 );
 
 export class App {
@@ -26,7 +27,7 @@ export class App {
 		let domNav = document.createElement('div');
 		domNav.setAttribute('id', 'mainNavigation');
 		document.body.appendChild(domNav);
-		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve, domNav, hostHtml, this._performAnimatedLoad.bind(this), AnimatedLoadSlideTransitionTime, SwipeThresholdFactor);
+		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve, domNav, hostHtml, this._performAnimatedLoad.bind(this), AnimatedLoadSlideTransitionTime, SwipeThresholdFactor, SwipeChangeSlideThresholdT);
 		this._background = new Background(this._nav, domBackground);
 	}
 
