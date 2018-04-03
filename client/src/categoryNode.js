@@ -22,9 +22,9 @@ const viewHtml = `
 `.format(SelectorText.slice(1), SelectorMain.slice(1), SelectorPhotos.slice(1));
 
 export class CategoryNode extends NavNode {
-	constructor(location, url, numPerRow, title, fontSize) {
+	constructor(location, url, numPerRow, title, fontSize, imageTransitionTime, loadingIndicatorTime, loadingIndicatorFactory) {
 		super(location, viewHtml, url);
-		this._photoUrls = Array.from(arguments).slice(5);
+		this._photoUrls = Array.from(arguments).slice(7);
 		this._subscriptions = [];
 		this._images = null;
 		this._domMain = null;
@@ -33,6 +33,9 @@ export class CategoryNode extends NavNode {
 		this._title = title;
 		this._titleFontSize = fontSize;
 		this._textNode = null;
+		this._imageTransitionTime = imageTransitionTime;
+		this._loadingTransitionTime = loadingIndicatorTime;
+		this._loadingIndicatorFactory = loadingIndicatorFactory;
 
 		let categoryDom = LoadHtml(CategoryHtml);
 		this._domCell = categoryDom.querySelector(SelectorCell);
@@ -74,7 +77,7 @@ export class CategoryNode extends NavNode {
 		//Adjust the Cell size to fit the smallest dimension of the images.
 		for( let url of this._photoUrls ) {
 			let photoClass = GetMatchingPhotoClassSize(baseCellSize);
-			let image = new ImageGL(null, Controller.navController, GetPhotoUrl(url, photoClass));
+			let image = new ImageGL(null, Controller.navController, GetPhotoUrl(url, photoClass), this._imageTransitionTime, this._loadingTransitionTime, this._loadingIndicatorFactory);
 			this._images.push(image);
 			this._subscriptions.push(image.loadedSubject.subscribe( () => {
 				if ( this._images.every( e => e.isLoaded ) ) {

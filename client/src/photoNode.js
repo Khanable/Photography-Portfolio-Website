@@ -6,18 +6,19 @@ import { ImageGL, Resize, GetPhotoClassUrl } from './image.js';
 import { Controller } from './main.js'
 
 export class PhotoNode extends NavNode {
-	constructor(location, url, photoUrl) {
+	constructor(location, url, photoUrl, imageTransitionTime, loadingIndicatorTransitionTime, loadingIndicatorFactory) {
 		super(location, PhotoViewHtml, url);
 		this._photoUrl = photoUrl;
 		this._subscriptions = [];
 		this._domMain = null;
 		this._imageGL = null;
+		this._imageTransitionTime = imageTransitionTime;
+		this._loadingIndicatorTime = loadingIndicatorTransitionTime;
+		this._loadingIndicatorFactory = loadingIndicatorFactory;
 	}
 
 	_loadGL() {
-		this._imageGL = new ImageGL(this._domMain, Controller.navController, GetPhotoClassUrl(this._domMain, this._photoUrl));
-		this._subscriptions.push(this._imageGL.loadedSubject.subscribe( () => {
-		}));
+		this._imageGL = new ImageGL(this._domMain, Controller.navController, GetPhotoClassUrl(this._domMain, this._photoUrl), this._imageTransitionTime, this._loadingIndicatorTime, this._loadingIndicatorFactory);
 	}
 
 	_load() {

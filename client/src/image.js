@@ -79,12 +79,13 @@ const ImageGLState = {
 	TransitionOutComplete: 3,
 }
 
-//Move me to constructor of ImageGL
-const ImageStateTransitionTime = 1.0;
 export class ImageGL {
-	constructor(domRoot, navController, url) {
+	constructor(domRoot, navController, url, imageStateTransitionTime, loadingIndicatorTime, loadingIndicatorFactory) {
 		this._domRoot = domRoot;
 		this._loaded = false;
+		this._loadingIndicator = loadingIndicatorFactory.new();
+		this._loadingIndicatorTime = loadingIndicatorTime;
+		this._imageStateTransitionTime = imageStateTransitionTime;
 		this._loadedSubject = new Subject();
 		this._camera = new OrthographicCamera( -0.5, 0.5, 0.5, -0.5, 0, 1 );
 		this._scene = new Scene();
@@ -115,6 +116,7 @@ export class ImageGL {
 			texture.minFilter = LinearFilter;
 			this._loaded = true;
 			this._loadedSubject.next();
+			this._updateDomLoadingIndicator();
 		});
 
 		UpdateController.updateSubject.subscribe( this._update.bind(this) );
@@ -122,11 +124,13 @@ export class ImageGL {
 		navController.transitioning.subscribe( state => {
 			this._transitioning = state;
 		});
+
+		this._updateDomLoadingIndicator();
 	}
 
 	_setStateTransitionIn() {
 		this._curState = ImageGLState.TransitionIn;
-		this._nStateEnd = this._t+ImageStateTransitionTime;
+		this._nStateEnd = this._t+this._imageStateTransitionTime;
 	}
 	_setStateTrasitionInComplete() {
 		this._uniforms.strength.value = 1;
@@ -134,7 +138,7 @@ export class ImageGL {
 	}
 	_setStateTransitionOut() {
 		this._curState = ImageGLState.TransitionOut;
-		this._nStateEnd = this._t+ImageStateTransitionTime;
+		this._nStateEnd = this._t+this._imageStateTransitionTime;
 		this._stateTransitionOutStrengthStart = this._uniforms.strength.value;
 	}
 	_setStateTransitionOutComplete() {
@@ -145,38 +149,49 @@ export class ImageGL {
 	_update(dt) {
 		this._t+=dt;
 
-		if ( this._loaded && this._domRoot != null) {
-			if ( this._curState == ImageGLState.Created && !this._transitioning) {
-				this._setStateTransitionIn();
+		if ( this._domRoot != null ) {
+			if ( this._loaded ) {
+				if ( this._curState == ImageGLState.Created && !this._transitioning) {
+					this._setStateTransitionIn();
+				}
+
+				if ( this._curState == ImageGLState.TransitionIn ) {
+					if ( this._t <= this._nStateEnd ) {
+						let start = this._nStateEnd-this._imageStateTransitionTime;
+						let t = this._t - start;
+						this._uniforms.strength.value = ThreeMath.lerp(0, 1, t/this._imageStateTransitionTime);
+					}
+					else {
+						this._setStateTrasitionInComplete();
+					}
+				}
+
+				if ( this._curState == ImageGLState.TransitionOut ) {
+					if ( this._t <= this._nStateEnd ) {
+						let start = this._nStateEnd-this._imageStateTransitionTime;
+						let t = this._t - start;
+						this._uniforms.strength.value = ThreeMath.lerp(this._stateTransitionOutStrengthStart, 0, t/this._imageStateTransitionTime);
+					}
+					else {
+						this._setStateTransitionOutComplete();
+					}
+				}
+
+				let containerRect = GetElementRect(this._domRoot)
+				let img = this._uniforms.tex.value.image;
+				let imgSize = new Vector2(img.width, img.height);
+				let rect = Resize(containerRect, imgSize);
+				GL.draw(this._scene, this._camera, rect, 100);
+			}
+			else {
+				if ( this._t >= this._nStateEnd ) {
+					this._nStateEnd = this._t+this._loadingIndicatorTime;
+				}
+				let start = this._nStateEnd - this._loadingIndicatorTime;
+				let t = this._t - start;
+				this._loadingIndicator.update(t/this._loadingIndicatorTime);
 			}
 
-			if ( this._curState == ImageGLState.TransitionIn ) {
-				if ( this._t <= this._nStateEnd ) {
-					let start = this._nStateEnd-ImageStateTransitionTime;
-					let t = this._t - start;
-					this._uniforms.strength.value = ThreeMath.lerp(0, 1, t/ImageStateTransitionTime);
-				}
-				else {
-					this._setStateTrasitionInComplete();
-				}
-			}
-
-			if ( this._curState == ImageGLState.TransitionOut ) {
-				if ( this._t <= this._nStateEnd ) {
-					let start = this._nStateEnd-ImageStateTransitionTime;
-					let t = this._t - start;
-					this._uniforms.strength.value = ThreeMath.lerp(this._stateTransitionOutStrengthStart, 0, t/ImageStateTransitionTime);
-				}
-				else {
-					this._setStateTransitionOutComplete();
-				}
-			}
-
-			let containerRect = GetElementRect(this._domRoot)
-			let img = this._uniforms.tex.value.image;
-			let imgSize = new Vector2(img.width, img.height);
-			let rect = Resize(containerRect, imgSize);
-			GL.draw(this._scene, this._camera, rect, 100);
 		}
 	}
 
@@ -193,8 +208,19 @@ export class ImageGL {
 		this._subscriptions.forEach( e => e.unsubscribe() );
 	}
 
+	_updateDomLoadingIndicator() {
+		if ( this._domRoot != null ) {
+			if ( this._loaded ) {
+				this._domRoot.innerHTML = '';
+			}
+			else {
+				this._domRoot.appendChild(this._loadingIndicatorDom);
+			}
+		}
+	}
 	set domRoot(v) {
 		this._domRoot = v;
+		this._updateDomLoadingIndicator();
 	}
 
 	get imageSize() {

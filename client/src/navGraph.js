@@ -10,6 +10,7 @@ import './index.css';
 import * as ContactHtml from './contact.html';
 import * as CVHtml from './cv.html';
 import * as LogoSvg from './logo.svg';
+import { LogoLoadingIndicatorFactory } from './loadingIndicator.js';
 
 export const Location = {
 	Index: 0,
@@ -21,6 +22,8 @@ export const Location = {
 	Photo1: 6,
 }
 
+const ImageStateTransitionTime = 1.0;
+const LoadingIndicatedTransitionTime = 1.0;
 
 const IndexDom = LoadHtml(IndexHtml);
 const IndexLogoContainerSelector = '#indexLogoContainer';
@@ -28,16 +31,17 @@ const IndexLogoTextSelector = '#indexLogoText';
 const LogoFontSize = 5;
 const LogoDom = LoadHtml(LogoSvg);
 const LogoSize = new Vector2(200, 200);
-AppendDomNodeChildren(IndexDom.querySelector(IndexLogoContainerSelector), LogoDom);
+AppendDomNodeChildren(IndexDom.querySelector(IndexLogoContainerSelector), LogoDom.cloneNode(true));
 
+const LoadingIndicatorFactory = new LogoLoadingIndicatorFactory(LogoDom);
 
 const IndexNode = new NavNode(Location.Index, IndexDom, 'index');
 const AboutNode = new NavNode(Location.About, AboutHtml, 'about');
 const ContactNode = new NavNode(Location.Contact, ContactHtml, 'contact');
 const CVNode = new NavNode(Location.CV, CVHtml, 'cv');
 const ServicesNode = new NavNode(Location.Services, CVHtml, 'cv');
-const Category1 = new CategoryNode(Location.Category1, 'category1', 2, 'Category 1', 25, '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg');
-const Photo1 = new PhotoNode(Location.Photo1, 'photo1', '/static/testImage.jpg');
+const Category1 = new CategoryNode(Location.Category1, 'category1', 2, 'Category 1', 25, ImageStateTransitionTime, LoadingIndicatedTransitionTime, LoadingIndicatorFactory, '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg', '/static/testImage.jpg');
+const Photo1 = new PhotoNode(Location.Photo1, 'photo1', '/static/testImage.jpg', ImageStateTransitionTime, LoadingIndicatedTransitionTime, LoadingIndicatorFactory);
 
 
 export const Graph = new NavGraph(IndexNode);
