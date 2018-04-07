@@ -4,7 +4,7 @@ import { Subject } from 'rxjs';
 import { Vector2 } from './vector';
 import { Rect } from './rect.js';
 import './util.js'
-import { GetElementSize, GetElementRect } from './util.js';
+import { RemoveAllChildren, GetElementSize, GetElementRect } from './util.js';
 import { GL } from './gl.js';
 import { UpdateController } from './update.js';
 import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath } from 'three';
@@ -197,6 +197,7 @@ export class ImageGL {
 
 	resize() {
 		this._setStateTrasitionInComplete();
+		this._loadingIndicator.resize();
 	}
 
 	unload() {
@@ -211,10 +212,11 @@ export class ImageGL {
 	_updateDomLoadingIndicator() {
 		if ( this._domRoot != null ) {
 			if ( this._loaded ) {
-				this._domRoot.innerHTML = '';
+				RemoveAllChildren(this._domRoot);
 			}
 			else {
-				this._domRoot.appendChild(this._loadingIndicatorDom);
+				this._domRoot.appendChild(this._loadingIndicator.domNode);
+				this._loadingIndicator.resize();
 			}
 		}
 	}

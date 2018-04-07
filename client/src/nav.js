@@ -1,7 +1,7 @@
 import * as CubicHermiteSpline from 'cubic-hermite-spline';
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
-import { SizeText, AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
+import { RemoveAllChildren,SizeText, AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
 import { Subject, ReplaySubject } from 'rxjs';
 import { Matrix3 } from './matrix';
 import './util.js';
@@ -162,9 +162,9 @@ export class NavController {
 		}
 		//?Change to touch once testing done
 		//https://developer.mozilla.org/en-US/docs/Web/Events/touchstart
-		this._domRoot.addEventListener('mousedown', swipeEventListener(this._swipeStart.bind(this)));
-		this._domRoot.addEventListener('mousemove', swipeEventListener(this._swipeMove.bind(this)));
-		this._domRoot.addEventListener('mouseup', swipeEventListener(this._swipeEnd.bind(this)));
+		//this._domRoot.addEventListener('mousedown', swipeEventListener(this._swipeStart.bind(this)));
+		//this._domRoot.addEventListener('mousemove', swipeEventListener(this._swipeMove.bind(this)));
+		//this._domRoot.addEventListener('mouseup', swipeEventListener(this._swipeEnd.bind(this)));
 	}
 
 	_getSwipeT(pos) {
@@ -364,7 +364,7 @@ export class NavController {
 	}
 
 	_init() {
-		this._domRoot.innerHTML = '';
+		RemoveAllChildren(this._domRoot);
 		let host = this._domHost.cloneNode(true);
 		this._append(this._domRoot, host);
 	}
@@ -444,7 +444,7 @@ export class NavController {
 			this._curNode.onDestroy();
 		}
 		let contentNode = this._domRoot.querySelector(ContentSelector);
-		contentNode.innerHTML = '';
+		RemoveAllChildren(contentNode);
 		this._append(contentNode, navNode.viewDom);
 		this._curNode = navNode;
 		this._curNodeDomContent = contentNode;

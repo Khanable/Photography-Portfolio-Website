@@ -23,7 +23,7 @@ export const Location = {
 }
 
 const ImageStateTransitionTime = 1.0;
-const LoadingIndicatedTransitionTime = 1.0;
+const LoadingIndicatedTransitionTime = 3.0;
 
 const IndexDom = LoadHtml(IndexHtml);
 const IndexLogoContainerSelector = '#indexLogoContainer';
@@ -33,7 +33,7 @@ const LogoDom = LoadHtml(LogoSvg);
 const LogoSize = new Vector2(200, 200);
 AppendDomNodeChildren(IndexDom.querySelector(IndexLogoContainerSelector), LogoDom.cloneNode(true));
 
-const LoadingIndicatorFactory = new LogoLoadingIndicatorFactory(LogoDom);
+const LoadingIndicatorFactory = new LogoLoadingIndicatorFactory(LogoDom, LogoSize);
 
 const IndexNode = new NavNode(Location.Index, IndexDom, 'index');
 const AboutNode = new NavNode(Location.About, AboutHtml, 'about');

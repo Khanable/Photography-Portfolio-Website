@@ -4,6 +4,7 @@ import { Vector2 } from './vector.js';
 import './photo.css';
 import { ImageGL, Resize, GetPhotoClassUrl } from './image.js';
 import { Controller } from './main.js'
+import { RemoveAllChildren } from './util.js';
 
 export class PhotoNode extends NavNode {
 	constructor(location, url, photoUrl, imageTransitionTime, loadingIndicatorTransitionTime, loadingIndicatorFactory) {
@@ -24,7 +25,7 @@ export class PhotoNode extends NavNode {
 	_load() {
 		let img = new Image();
 		img.addEventListener('load', () => {
-			this._domMain.innerHTML = '';
+			RemoveAllChildren(this._domMain);
 
 			let displayRect = this._domMain.getBoundingClientRect();
 			let displaySize = new Vector2(displayRect.width, displayRect.height);
@@ -37,23 +38,17 @@ export class PhotoNode extends NavNode {
 		img.src = GetPhotoClassUrl(this._domMain, this._photoUrl);
 	}
 
-	_setLoading() {
-		this._domMain.innerHTML = '';
-		//this._domMain.innerHTML = '<label style="color:white;">Loading</label>';
-	}
 
 	onLoad(domNode) {
 		super.onLoad(domNode);
 		this._domMain = domNode.querySelector('#photoContainer');
 
-		this._setLoading();
 		this._loadGL();
 	}
 
 	onResize() {
 		super.onResize();
 
-		this._setLoading();
 		this._loadGL();
 		this._imageGL.resize();
 	}

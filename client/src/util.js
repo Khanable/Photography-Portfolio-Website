@@ -57,3 +57,11 @@ export const AppendDomNodeChildren = function(rootNode, parentNode) {
 		rootNode.appendChild(child);
 	}
 }
+
+export const RemoveAllChildren = function(node) {
+	let children = node.children;
+	while( children.length > 0 ) {
+		let child = children[0];
+		node.removeChild(child);
+	}
+}
