@@ -82,50 +82,85 @@ const ImageGLState = {
 export class ImageGL {
 	constructor(domRoot, navController, url, imageStateTransitionTime, loadingIndicatorTime, loadingIndicatorFactory) {
 		this._domRoot = domRoot;
+		this._fallBackImg = null;
 		this._loaded = false;
 		this._loadingIndicator = loadingIndicatorFactory.new();
 		this._loadingIndicatorTime = loadingIndicatorTime;
 		this._imageStateTransitionTime = imageStateTransitionTime;
 		this._loadedSubject = new Subject();
-		this._camera = new OrthographicCamera( -0.5, 0.5, 0.5, -0.5, 0, 1 );
-		this._scene = new Scene();
-		this._mesh = null;
-		this._curState = ImageGLState.Created;
 		this._transitioning = false;
+		this._curState = ImageGLState.Created;
 		this._t = 0;
 		this._nStateEnd = 0;
 		this._stateTransitionOutStrengthStart = 0;
 		this._subscriptions = [];
-		this._uniforms = {
-			strength: { value: 0 },
-			tex: { value: null },
-		};
-		let material = new ShaderMaterial( {
-			uniforms: this._uniforms,
-			vertexShader: ImageGLVertexShader,
-			fragmentShader: ImageGLFragmentShader,
-		} );
-		material.transparent = true;
-		let geometry = new PlaneBufferGeometry(1, 1);
-		this._mesh = new Mesh(geometry, material);
-		this._scene.add(this._mesh);
-
-		this._loader = new TextureLoader();
-		this._loader.load(url, (texture) => {
-			this._uniforms.tex.value = texture;
-			texture.minFilter = LinearFilter;
-			this._loaded = true;
-			this._loadedSubject.next();
-			this._updateDomLoadingIndicator();
-		});
+		this._url = url;
+		this._webGLSupport = GL.webGLSupport;
 
 		UpdateController.updateSubject.subscribe( this._update.bind(this) );
-
 		navController.transitioning.subscribe( state => {
 			this._transitioning = state;
 		});
-
 		this._updateDomLoadingIndicator();
+
+		if ( this._webGLSupport ) {
+			this._camera = new OrthographicCamera( -0.5, 0.5, 0.5, -0.5, 0, 1 );
+			this._scene = new Scene();
+			this._mesh = null;
+			this._uniforms = {
+				strength: { value: 0 },
+				tex: { value: null },
+			};
+			let material = new ShaderMaterial( {
+				uniforms: this._uniforms,
+				vertexShader: ImageGLVertexShader,
+				fragmentShader: ImageGLFragmentShader,
+			} );
+			material.transparent = true;
+			let geometry = new PlaneBufferGeometry(1, 1);
+			this._mesh = new Mesh(geometry, material);
+			this._scene.add(this._mesh);
+
+			this._loader = new TextureLoader();
+			this._loader.load(url, (texture) => {
+				this._uniforms.tex.value = texture;
+				texture.minFilter = LinearFilter;
+				this._markLoaded();
+			});
+		}
+		else {
+			this._fallBackImg = this._loadImageFallBack(url);
+		}
+	}
+
+	_markLoaded() {
+		this._loaded = true;
+		this._loadedSubject.next();
+		this._updateDomLoadingIndicator();
+	}
+
+	_resizeAndAppendImageFallBack(img) {
+		this._resizeFallbackImage(img);
+		this._domRoot.appendChild(img);
+	}
+
+	_loadImageFallBack(url) {
+		let img = new Image();
+		img.addEventListener('load', () => {
+			this._markLoaded();
+			if ( this._domRoot != null ) {
+				this._resizeAndAppendImageFallBack(img);
+			}
+		});
+		img.src = url;
+		return img;
+	}
+	_resizeFallbackImage(img) {
+		let displayRect = GetElementRect(this._domRoot);
+		let naturalSize = new Vector2(img.naturalWidth, img.naturalHeight);
+		let imgSize = Resize(displayRect, naturalSize);
+		img.width = imgSize.w;
+		img.height = imgSize.h;
 	}
 
 	_setStateTransitionIn() {
@@ -150,7 +185,7 @@ export class ImageGL {
 		this._t+=dt;
 
 		if ( this._domRoot != null ) {
-			if ( this._loaded ) {
+			if ( this._loaded && this._webGLSupport ) {
 				if ( this._curState == ImageGLState.Created && !this._transitioning) {
 					this._setStateTransitionIn();
 				}
@@ -196,12 +231,24 @@ export class ImageGL {
 	}
 
 	resize() {
-		this._setStateTrasitionInComplete();
-		this._loadingIndicator.resize();
+		if ( this._domRoot != null ) {
+			if ( this._webGLSupport ) {
+				this._setStateTrasitionInComplete();
+			}
+			else {
+				this._resizeFallbackImage(this._fallBackImg);
+			}
+
+			if ( !this._loaded ) {
+				this._loadingIndicator.resize();
+			}
+		}
 	}
 
 	unload() {
-		this._setStateTransitionOut();
+		if ( this._webGLSupport ) {
+			this._setStateTransitionOut();
+		}
 	}
 
 	destroy() {
@@ -211,10 +258,11 @@ export class ImageGL {
 
 	_updateDomLoadingIndicator() {
 		if ( this._domRoot != null ) {
-			if ( this._loaded ) {
-				RemoveAllChildren(this._domRoot);
+			let indicatorParent = this._loadingIndicator.domNode.parentNode;
+			if ( this._loaded && indicatorParent != null ) {
+				this._domRoot.removeChild(this._loadingIndicator.domNode);
 			}
-			else {
+			else if ( !this._loaded ){
 				this._domRoot.appendChild(this._loadingIndicator.domNode);
 				this._loadingIndicator.resize();
 			}
@@ -222,13 +270,22 @@ export class ImageGL {
 	}
 	set domRoot(v) {
 		this._domRoot = v;
+		if ( !this._webGLSupport ) {
+			this._resizeAndAppendImageFallBack(this._fallBackImg);
+		}
 		this._updateDomLoadingIndicator();
 	}
 
 	get imageSize() {
 		if ( this._loaded ) {
-			let tex = this._uniforms.tex.value.image;
-			return new Vector2(tex.width, tex.height);
+			if ( this._webGLSupport ) {
+				let tex = this._uniforms.tex.value.image;
+				return new Vector2(tex.width, tex.height);
+			}
+			else {
+				let img = this._fallBackImg;
+				return new Vector2(img.naturalWidth, img.naturalHeight);
+			}
 		}
 		else {
 			throw new Error('Image not loaded yet');

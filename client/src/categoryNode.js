@@ -44,7 +44,7 @@ export class CategoryNode extends NavNode {
 
 	_setupTable(numRows, rowSize) {
 		RemoveAllChildren(this._categoryNode);
-
+		let cells = [];
 		for( let i = 0; i < numRows; i++ ) {
 			let curRow = this._domRow.cloneNode(true);
 			curRow.setAttribute('style', 'width:{0}px;height:{1}px;'.format(rowSize.x,rowSize.y));
@@ -54,23 +54,25 @@ export class CategoryNode extends NavNode {
 				if ( curIndex < this._images.length ) {
 					let curCell = this._domCell.cloneNode(true);
 					curRow.appendChild(curCell);
-					let image = this._images[curIndex];
-					image.domRoot = curCell;
+					cells.push(curCell);
 				}
 				else {
 					break;
 				}
 			}
 		}
+		return cells;
 	}
 
 	_completeLoad(baseCellSize, numRows) {
+		console.log('complete load');
 		let sizes = this._images.map( e => Resize(new Rect(0, 0, baseCellSize.x, baseCellSize.y), e.imageSize) );
 		let sizesY = sizes.map( e => e.h ).sort( (a, b) => b-a );
 		let cellSizeY = sizesY.pop();
 		let rowSizeX = sizes.map( e => e.w ).sort( (a, b) => a-b ).slice(this._numPerRow);
 		rowSizeX = rowSizeX.reduce( (acc, cv) => acc+cv, 0);
-		this._setupTable(numRows, new Vector2(rowSizeX, cellSizeY));
+		let cells = this._setupTable(numRows, new Vector2(rowSizeX, cellSizeY));
+		cells.forEach( (e, i) => this._images[i].domRoot = e );
 	}
 
 	_loadView() {
@@ -81,6 +83,7 @@ export class CategoryNode extends NavNode {
 		let numRows = Math.ceil(this._photoUrls.length/this._numPerRow);
 
 		//Adjust the Cell size to fit the smallest dimension of the images.
+		this._setupTable(numRows, new Vector2(baseCellSize.x*this._numPerRow, baseCellSize.y));
 		for( let url of this._photoUrls ) {
 			let photoClass = GetMatchingPhotoClassSize(baseCellSize);
 			let image = new ImageGL(null, Controller.navController, GetPhotoUrl(url, photoClass), this._imageTransitionTime, this._loadingTransitionTime, this._loadingIndicatorFactory);
@@ -91,7 +94,6 @@ export class CategoryNode extends NavNode {
 				}
 			}));
 		}
-		this._setupTable(numRows, new Vector2(baseCellSize.x*this._numPerRow, baseCellSize.y));
 	}
 
 	_resizeText() {
@@ -114,9 +116,9 @@ export class CategoryNode extends NavNode {
 		super.onResize();
 		this._resizeText();
 
-		this._loadView();
+		//this._loadView();
 
-		this._images.forEach( e => e.resize() );
+		//this._images.forEach( e => e.resize() );
 	}
 
 	onUnload() {

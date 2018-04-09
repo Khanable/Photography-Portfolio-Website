@@ -1,6 +1,7 @@
 import { UpdateController } from './update';
 import { Color, WebGLRenderer } from 'three';
 import { AppendAttribute, GetWindowSize } from './util.js';
+import * as Detector from 'three/examples/js/Detector.js';
 
 class Draw {
 	constructor(scene, camera, viewportRect, layer) {
@@ -13,18 +14,22 @@ class Draw {
 
 export class GLRenderer {
 	constructor() {
-		this._renderer = new WebGLRenderer( { alpha: true, depth: false } );
-		this._renderer.setPixelRatio(window.devicePixelRatio);
-		this._renderer.autoClear = false;
-		this._renderer.sortObjects = false;
+		this._webGLSupport = Detector.webgl;
 
-		this._draws = [];
+		if ( this._webGLSupport ) {
+			this._renderer = new WebGLRenderer( { alpha: true, depth: false } );
+			this._renderer.setPixelRatio(window.devicePixelRatio);
+			this._renderer.autoClear = false;
+			this._renderer.sortObjects = false;
 
-		document.body.appendChild(this._renderer.domElement);
-		window.addEventListener('resize', this._resize.bind(this) );
+			this._draws = [];
 
-		UpdateController.renderSubject.subscribe(this._render.bind(this));
-		this._resize();
+			document.body.appendChild(this._renderer.domElement);
+			window.addEventListener('resize', this._resize.bind(this) );
+
+			UpdateController.renderSubject.subscribe(this._render.bind(this));
+			this._resize();
+		}
 	}
 
 	_render(dt) {
@@ -50,7 +55,17 @@ export class GLRenderer {
 	}
 
 	draw(scene, camera, viewportRect, layer) {
-		this._draws.push(new Draw(scene, camera, viewportRect, layer));
+		if ( this._webGLSupport ) {
+			this._draws.push(new Draw(scene, camera, viewportRect, layer));
+		}
+		else {
+			throw new Error('WebGL not supported');
+		}
+	}
+
+	get webGLSupport() {
+		return false;
+		//return this._webGLSupport;
 	}
 }
 
