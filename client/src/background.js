@@ -1,5 +1,5 @@
 import { UpdateController } from './update';
-import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath, Vector2 as ThreeVector2 } from 'three';
+import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath, Vector2 as ThreeVector2, Vector3 as ThreeVector3 } from 'three';
 import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
 import { Vector2 } from './vector.js';
 import { Color } from 'three';
@@ -18,8 +18,8 @@ const Fragment = `
 
 const float wallEffectNoiseDistanceFactor = 0.25;
 const float wallEffectFactor = 1.0;
-const vec3 lightColor = vec3(1, 0.839, 0.667);
-const float fallOffFactor = 3.0;
+const vec3 lightColor = vec3({0}, {1}, {2});
+const float fallOffFactor = {3};
 
 uniform float strength;
 uniform vec2 resolution;
@@ -107,6 +107,8 @@ const Settings = {
 	strength: 2.5,
 	firstLoadDarkTime: 0.75,
 	firstLoadWarmTime: 3,
+	lightColor: new ThreeVector3(1, 0.839, 0.667),
+	fallOffFactor: 3.0,
 }
 
 const FirstLoadState = {
@@ -146,7 +148,7 @@ export class Background {
 			let material = new ShaderMaterial( {
 				uniforms: this._uniforms,
 				vertexShader: Vertex,
-				fragmentShader: Fragment,
+				fragmentShader: Fragment.format(Settings.lightColor.x, Settings.lightColor.y, Settings.lightColor.z, Settings.fallOffFactor.toFixed(1)),
 			} );
 			let geometry = new PlaneBufferGeometry(1, 1);
 			this._mesh = new Mesh(geometry, material);
@@ -155,9 +157,9 @@ export class Background {
 		else {
 			let backgroundDom = document.createElement('div');
 			let intervals = [];
-			let lightColor = [1, 0.839, 0.667];
-			let strength = 2.5;
-			let fallOffFactor = 3.0;
+			let lightColor = [Settings.lightColor.x, Settings.lightColor.y, Settings.lightColor.z];
+			let strength = Settings.strength;
+			let fallOffFactor = Settings.fallOffFactor;
 			//Overshoot the % to get the correct gradient.
 			for(let i = 0; i < 190; i++) {
 				let radius = i/190;
@@ -168,6 +170,7 @@ export class Background {
 				intervals.push(String.prototype.format.apply('rgb({0}, {1}, {2}) {3}%', data));
 			}
 			backgroundDom.setAttribute('style', 'width:100%;height:100%;background:radial-gradient(circle, {0});'.format(intervals.join(',')));
+
 			this._domRoot.appendChild(backgroundDom);
 		}
 

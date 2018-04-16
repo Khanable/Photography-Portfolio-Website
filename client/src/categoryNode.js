@@ -65,7 +65,6 @@ export class CategoryNode extends NavNode {
 	}
 
 	_completeLoad(baseCellSize, numRows) {
-		console.log('complete load');
 		let sizes = this._images.map( e => Resize(new Rect(0, 0, baseCellSize.x, baseCellSize.y), e.imageSize) );
 		let sizesY = sizes.map( e => e.h ).sort( (a, b) => b-a );
 		let cellSizeY = sizesY.pop();

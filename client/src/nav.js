@@ -3,7 +3,6 @@ import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
 import { RemoveAllChildren,SizeText, AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
 import { Subject, ReplaySubject } from 'rxjs';
-import { Matrix3 } from './matrix';
 import './util.js';
 import 'url-parse';
 
