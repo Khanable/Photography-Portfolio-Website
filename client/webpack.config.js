@@ -4,7 +4,8 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CleanWebpackPlugin = require('clean-webpack-plugin');
 
 module.exports = {
-	entry: './src/main.js',
+	mode: 'development',
+	entry: [ 'babel-polyfill', 'url-polyfill', './src/main.js' ],
 	output: {
 		filename: 'bundle.js',
 		path: path.resolve(__dirname, 'dist'),
@@ -29,10 +30,15 @@ module.exports = {
 					}
 				}
 			},
+			{
+				test: /\.js$/,
+				exclude: /node_modules/,
+				loader: "babel-loader"
+			},
 		]
 	},
 	devServer: {
-		open: true,
+		open: false,
 		hot: true,
 		historyApiFallback: true,
 	},

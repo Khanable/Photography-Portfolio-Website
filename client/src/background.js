@@ -2,7 +2,6 @@ import { UpdateController } from './update';
 import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath, Vector2 as ThreeVector2, Vector3 as ThreeVector3 } from 'three';
 import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
 import { Vector2 } from './vector.js';
-import { Color } from 'three';
 import { RandomRange, GetElementRect } from './util.js';
 import { GL, GLBase } from './gl.js';
 import './util.js';
@@ -128,6 +127,8 @@ export class Background {
 		this._nFirstLoadState = 0;
 		this._finishFirstLoadCallback = null;
 		this._webGLSupport = GL.webGLSupport;
+		this._loadedWebGL = false;
+		this._fallback = false;
 
 		UpdateController.updateSubject.subscribe( this._update.bind(this) );
 		window.addEventListener('resize', this._resize.bind(this));
@@ -137,6 +138,7 @@ export class Background {
 		};
 
 		if ( this._webGLSupport ) {
+			this._loadedWebGL = true;
 			this._camera = new OrthographicCamera( -1, 1, 1, -1, 0, 1 );
 			this._scene = new Scene();
 			this._mesh = null;
@@ -155,6 +157,29 @@ export class Background {
 			this._scene.add(this._mesh);
 		}
 		else {
+			this._loadFallbackDom();
+		}
+
+		this._lowFrameRateSubscription = UpdateController.frameRateLowSubject.subscribe( e => {
+			if ( e ) {
+				this._lowFrameRateSubscription.unsubscribe();
+				this._loadFallbackDom();
+			}
+		});
+
+		this._resize();
+	}
+
+	_loadFallbackDom() {
+		if ( !this._fallback ) {
+			this._fallback = true;
+			this._webGLSupport = false;
+			if ( this._loadedWebGL ) {
+				this._camera = null;
+				this._scene = null;
+				this._mesh = null;
+				this._uniforms = null;
+			}
 			let backgroundDom = document.createElement('div');
 			let intervals = [];
 			let lightColor = [Settings.lightColor.x, Settings.lightColor.y, Settings.lightColor.z];
@@ -173,8 +198,6 @@ export class Background {
 
 			this._domRoot.appendChild(backgroundDom);
 		}
-
-		this._resize();
 	}
 
 	_resize() {

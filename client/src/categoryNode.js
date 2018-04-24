@@ -1,6 +1,6 @@
 import { NavNode } from './nav.js';
 import { RemoveAllChildren, SizeText, LoadHtml, GetElementSize } from './util.js';
-import * as CategoryHtml from './category.html';
+import { default as CategoryHtml } from './category.html';
 import './category.css';
 import { ImageGL, GetMatchingPhotoClassSize, GetPhotoUrl, Resize } from './image.js';
 import { Vector2 } from './vector.js';

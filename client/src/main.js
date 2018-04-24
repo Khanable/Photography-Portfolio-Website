@@ -5,7 +5,7 @@ import { GetNavFromUrl } from './util.js';
 import { UpdateController } from './update.js';
 import { Background } from './background.js';
 import { Graph, Location } from './navGraph.js'
-import * as hostHtml from './nav.html';
+import { default as hostHtml } from './nav.html';
 import './main.css';
 import './nav.css';
 

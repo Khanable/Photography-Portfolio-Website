@@ -16,6 +16,13 @@ export class GLRenderer {
 	constructor() {
 		this._webGLSupport = Detector.webgl;
 
+		this._lowFrameRateSubscription = UpdateController.frameRateLowSubject.subscribe( e => {
+			if ( e ) {
+				this._lowFrameRateSubscription.unsubscribe();
+				this._loadFallback();
+			}
+		});
+
 		if ( this._webGLSupport ) {
 			this._renderer = new WebGLRenderer( { alpha: true, depth: false } );
 			this._renderer.setPixelRatio(window.devicePixelRatio);
@@ -25,10 +32,22 @@ export class GLRenderer {
 			this._draws = [];
 
 			document.body.appendChild(this._renderer.domElement);
-			window.addEventListener('resize', this._resize.bind(this) );
+			this._resizeEventHook = this._resize.bind(this);
+			window.addEventListener('resize', this._resizeEventHook );
 
-			UpdateController.renderSubject.subscribe(this._render.bind(this));
+			this._renderSubscription = UpdateController.renderSubject.subscribe(this._render.bind(this));
 			this._resize();
+		}
+	}
+
+	_loadFallback() {
+		if ( this._webGLSupport ) {
+			this._webGLSupport = false;
+			document.body.removeChild(this._renderer.domElement);
+			this._renderer = null;
+			this._draws = null;
+			window.removeEventListener('resize', this._resizeEventHook);
+			this._renderSubscription.unsubscribe();
 		}
 	}
 
@@ -59,7 +78,7 @@ export class GLRenderer {
 			this._draws.push(new Draw(scene, camera, viewportRect, layer));
 		}
 		else {
-			throw new Error('WebGL not supported');
+			throw new Error('WebGL not supported, or fallback loaded');
 		}
 	}
 

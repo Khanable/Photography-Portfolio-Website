@@ -1,6 +1,6 @@
 import { UpdateController } from './update.js';
 import { GL } from './gl.js';
-import * as fallbackNotifierHtml from './fallbackNotifier.html';
+import { default as fallbackNotifierHtml } from './fallbackNotifier.html';
 import { GetElementSize, LoadHtml } from './util.js';
 
 const Entry = {
@@ -41,8 +41,9 @@ export class FallbackNotifier {
 			this.showFallback(Entry.NoWEBGL);
 		}
 
-		UpdateController.frameRateLowSubject.subscribe( isLow => {
+		this._lowFrameRateSubscription = UpdateController.frameRateLowSubject.subscribe( isLow => {
 			if ( isLow ) {
+				this._lowFrameRateSubscription.unsubscribe();
 				this.showFallback(Entry.LowFrameRate);
 			}
 		});

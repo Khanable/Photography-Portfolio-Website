@@ -4,12 +4,12 @@ import { Resize } from './image.js';
 import { Vector2 } from './vector.js';
 import { SizeText, GetElementRect, GetElementSize, AppendDomNodeChildren, LoadHtml } from './util.js';
 import { CategoryNode } from './categoryNode.js';
-import * as AboutHtml from './about.html';
-import * as IndexHtml from './index.html';
+import { default as AboutHtml } from './about.html';
+import { default as IndexHtml } from './index.html';
 import './index.css';
-import * as ContactHtml from './contact.html';
-import * as CVHtml from './cv.html';
-import * as LogoSvg from './logo.svg';
+import { default as ContactHtml } from './contact.html';
+import { default as CVHtml } from './cv.html';
+import { default as LogoSvg } from './logo.svg';
 import { LogoLoadingIndicatorFactory } from './loadingIndicator.js';
 
 export const Location = {

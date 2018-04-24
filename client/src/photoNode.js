@@ -1,5 +1,5 @@
 import { NavNode } from './nav.js';
-import * as PhotoViewHtml from './photo.html';
+import { default as PhotoViewHtml } from './photo.html';
 import { Vector2 } from './vector.js';
 import './photo.css';
 import { ImageGL, Resize, GetPhotoClassUrl } from './image.js';

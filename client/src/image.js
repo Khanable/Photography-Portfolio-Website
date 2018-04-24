@@ -1,15 +1,12 @@
 import { GLBase } from './gl.js';
-import { Color, TextureLoader, LinearFilter } from 'three';
 import { Subject } from 'rxjs';
-import { Vector2 } from './vector';
 import { Rect } from './rect.js';
 import './util.js'
-import { RemoveAllChildren, GetElementSize, GetElementRect } from './util.js';
+import { RemoveAllChildren, GetElementSize, GetElementRect, AppendAttribute, GetWindowSize } from './util.js';
 import { GL } from './gl.js';
 import { UpdateController } from './update.js';
-import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath } from 'three';
+import { Color, TextureLoader, LinearFilter, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath } from 'three';
 import { MeshBasicMaterial } from 'three';
-import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
 import { Vector2 } from './vector.js';
 
 const PhotoNameFormat = '{0}_{1}.{2}';
@@ -96,14 +93,37 @@ export class ImageGL {
 		this._subscriptions = [];
 		this._url = url;
 		this._webGLSupport = GL.webGLSupport;
+		this._fallback = false;
+		this._loadedWebGL = false;
+		this._loader = new TextureLoader();
 
-		UpdateController.updateSubject.subscribe( this._update.bind(this) );
-		navController.transitioning.subscribe( state => {
-			this._transitioning = state;
+		this._loader.load(url, (texture) => {
+			this._markLoaded(texture.image);
+			if ( this._webGLSupport ) {
+				this._uniforms.tex.value = texture;
+				texture.minFilter = LinearFilter;
+			}
+			else {
+				this._loadImageFallBack();
+			}
 		});
+
+		this._subscriptions.push(UpdateController.updateSubject.subscribe( this._update.bind(this) ));
+		this._subscriptions.push(navController.transitioning.subscribe( state => {
+			this._transitioning = state;
+		}));
 		this._updateDomLoadingIndicator();
 
+		this._lowFrameRateSubscription = UpdateController.frameRateLowSubject.subscribe( e => {
+			if ( e ) {
+				this._lowFrameRateSubscription.unsubscribe();
+				this._loadImageFallBack();
+			}
+		});
+		this._subscriptions.push(this._lowFrameRateSubscription);
+
 		if ( this._webGLSupport ) {
+			this._loadedWebGL = true;
 			this._camera = new OrthographicCamera( -0.5, 0.5, 0.5, -0.5, 0, 1 );
 			this._scene = new Scene();
 			this._mesh = null;
@@ -120,21 +140,12 @@ export class ImageGL {
 			let geometry = new PlaneBufferGeometry(1, 1);
 			this._mesh = new Mesh(geometry, material);
 			this._scene.add(this._mesh);
-
-			this._loader = new TextureLoader();
-			this._loader.load(url, (texture) => {
-				this._uniforms.tex.value = texture;
-				texture.minFilter = LinearFilter;
-				this._markLoaded();
-			});
-		}
-		else {
-			this._fallBackImg = this._loadImageFallBack(url);
 		}
 	}
 
-	_markLoaded() {
+	_markLoaded(image) {
 		this._loaded = true;
+		this._fallBackImg = image;
 		this._loadedSubject.next();
 		this._updateDomLoadingIndicator();
 	}
@@ -144,16 +155,21 @@ export class ImageGL {
 		this._domRoot.appendChild(img);
 	}
 
-	_loadImageFallBack(url) {
-		let img = new Image();
-		img.addEventListener('load', () => {
-			this._markLoaded();
-			if ( this._domRoot != null ) {
-				this._resizeAndAppendImageFallBack(img);
+	_loadImageFallBack() {
+		if ( !this._fallback && this._loaded ) {
+			this._fallback = true;
+			this._webGLSupport = false;
+			if ( this._loadedWebGL ) {
+				this._camera = null;
+				this._scene = null;
+				this._mesh = null;
+				this._uniforms = null;
+				this._loader = null
 			}
-		});
-		img.src = url;
-		return img;
+			if ( this._domRoot != null ) {
+				this._resizeAndAppendImageFallBack(this._fallBackImg);
+			}
+		}
 	}
 	_resizeFallbackImage(img) {
 		let displayRect = GetElementRect(this._domRoot);
@@ -278,14 +294,8 @@ export class ImageGL {
 
 	get imageSize() {
 		if ( this._loaded ) {
-			if ( this._webGLSupport ) {
-				let tex = this._uniforms.tex.value.image;
-				return new Vector2(tex.width, tex.height);
-			}
-			else {
-				let img = this._fallBackImg;
-				return new Vector2(img.naturalWidth, img.naturalHeight);
-			}
+			let img = this._fallBackImg;
+			return new Vector2(img.naturalWidth, img.naturalHeight);
 		}
 		else {
 			throw new Error('Image not loaded yet');

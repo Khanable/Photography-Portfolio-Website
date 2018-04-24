@@ -1,4 +1,4 @@
-import * as CubicHermiteSpline from 'cubic-hermite-spline';
+import { default as CubicHermiteSpline } from 'cubic-hermite-spline';
 import { UpdateController } from './update.js';
 import { Vector2 } from './vector.js';
 import { RemoveAllChildren,SizeText, AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
@@ -709,6 +709,7 @@ export class NavNode {
 		this._connections = [];
 		this._displayConnections = new Map();
 		this._viewDom = null;
+
 		if ( typeof(viewHtml) == 'string' ) {
 			this._viewDom = LoadHtml(viewHtml);
 		}

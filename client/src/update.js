@@ -8,10 +8,25 @@ export class Update {
 		this._frameRateLowSubject = new ReplaySubject(1);
 		this._lowFrameRateSampleTime = lowFrameRateSampleTime;
 		this._lowFrameRateTriggerMS = lowFrameRateTriggerMS;
+
 		this._running = false;
+		this._wasRunning = false;
 		this._lastT = null;
 		this._nLowFrameRateCheck = null;
-		this._frameRateLowSamples = [];
+		this._frameRateLowSamples = null
+
+		document.addEventListener('visibilitychange', () => {
+			if ( document.visibilityState == 'hidden' && this._running ) {
+				this._wasRunning = true;
+				this.stop();
+			}
+			else if ( document.visibilityState == 'visible' && this._wasRunning ) {
+				this._wasRunning = false;
+				this.start();
+			}
+		});
+
+		this._loop(null);
 	}
 
 	get renderSubject() {
@@ -31,7 +46,7 @@ export class Update {
 			let dt = 0;
 			//Handle stop then start without jump in dt
 			if ( this._lastT == null ) {
-				dt = time;
+				dt = 0;
 			}
 			else {
 				dt = time-this._lastT;
@@ -60,6 +75,7 @@ export class Update {
 
 			this._updateSubject.next(dt);
 			this._renderSubject.next(dt);
+
 		}
 
 		window.requestAnimationFrame(this._loop.bind(this));
@@ -67,8 +83,10 @@ export class Update {
 
 	start() {
 		this._running = true;
+		this._wasRunning = false;
 		this._lastT = null;
-		this._loop(0);
+		this._nLowFrameRateCheck = null;
+		this._frameRateLowSamples = [];
 	}
 
 	stop() {
