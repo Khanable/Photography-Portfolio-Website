@@ -399,7 +399,7 @@ export class NavController {
 			}
 			else {
 				AppendAttribute(arrowNode, 'class', ' '+ArrowNavClass);
-				arrowNode.innerText = connections.get(arrowDir).arrowText;
+				arrowNode.querySelector('label').innerText = connections.get(arrowDir).arrowText;
 				arrowNode.addEventListener('click', () => this._clickArrow(arrowDir, connections.get(arrowDir).node));
 			}
 
