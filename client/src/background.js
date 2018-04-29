@@ -141,7 +141,6 @@ export class Background {
 			this._loadedWebGL = true;
 			this._camera = new OrthographicCamera( -1, 1, 1, -1, 0, 1 );
 			this._scene = new Scene();
-			this._mesh = null;
 			this._uniforms = {
 				strength: { value: Settings.strength },
 				fallOffFactor: { value: Settings.fallOffFactor },

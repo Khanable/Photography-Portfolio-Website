@@ -232,7 +232,7 @@ export class ImageGL {
 				let img = this._uniforms.tex.value.image;
 				let imgSize = new Vector2(img.width, img.height);
 				let rect = Resize(containerRect, imgSize);
-				GL.draw(this._scene, this._camera, rect, 100);
+				//GL.draw(this._scene, this._camera, rect, 100);
 			}
 			else {
 				if ( this._t >= this._nStateEnd ) {
