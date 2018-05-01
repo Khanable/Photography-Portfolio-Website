@@ -124,8 +124,6 @@ export class ImageGL {
 
 		if ( this._webGLSupport ) {
 			this._loadedWebGL = true;
-			this._camera = new OrthographicCamera( -0.5, 0.5, 0.5, -0.5, 0, 1 );
-			this._scene = new Scene();
 			this._mesh = null;
 			this._uniforms = {
 				strength: { value: 0 },
@@ -139,7 +137,7 @@ export class ImageGL {
 			material.transparent = true;
 			let geometry = new PlaneBufferGeometry(1, 1);
 			this._mesh = new Mesh(geometry, material);
-			this._scene.add(this._mesh);
+			//GL.add(this._mesh);
 		}
 	}
 
@@ -160,8 +158,6 @@ export class ImageGL {
 			this._fallback = true;
 			this._webGLSupport = false;
 			if ( this._loadedWebGL ) {
-				this._camera = null;
-				this._scene = null;
 				this._mesh = null;
 				this._uniforms = null;
 				this._loader = null
@@ -232,7 +228,6 @@ export class ImageGL {
 				let img = this._uniforms.tex.value.image;
 				let imgSize = new Vector2(img.width, img.height);
 				let rect = Resize(containerRect, imgSize);
-				//GL.draw(this._scene, this._camera, rect, 100);
 			}
 			else {
 				if ( this._t >= this._nStateEnd ) {

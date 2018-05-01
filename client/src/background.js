@@ -1,9 +1,9 @@
 import { UpdateController } from './update';
-import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath, Vector2 as ThreeVector2, Vector3 as ThreeVector3 } from 'three';
+import { MeshBasicMaterial, Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath, Vector2 as ThreeVector2, Vector3 as ThreeVector3 } from 'three';
 import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
 import { Vector2 } from './vector.js';
 import { RandomRange, GetElementRect } from './util.js';
-import { GL, GLBase } from './gl.js';
+import { GL } from './gl.js';
 import './util.js';
 
 const Vertex = `
@@ -139,8 +139,6 @@ export class Background {
 
 		if ( this._webGLSupport ) {
 			this._loadedWebGL = true;
-			this._camera = new OrthographicCamera( -1, 1, 1, -1, 0, 1 );
-			this._scene = new Scene();
 			this._uniforms = {
 				strength: { value: Settings.strength },
 				fallOffFactor: { value: Settings.fallOffFactor },
@@ -151,9 +149,10 @@ export class Background {
 				vertexShader: Vertex,
 				fragmentShader: Fragment.format(Settings.lightColor.x, Settings.lightColor.y, Settings.lightColor.z, Settings.fallOffFactor.toFixed(1)),
 			} );
+			material = new MeshBasicMaterial();
 			let geometry = new PlaneBufferGeometry(1, 1);
 			this._mesh = new Mesh(geometry, material);
-			this._scene.add(this._mesh);
+			GL.add(this._mesh);
 		}
 		else {
 			this._loadFallbackDom();
@@ -174,8 +173,6 @@ export class Background {
 			this._fallback = true;
 			this._webGLSupport = false;
 			if ( this._loadedWebGL ) {
-				this._camera = null;
-				this._scene = null;
 				this._mesh = null;
 				this._uniforms = null;
 			}
@@ -201,39 +198,11 @@ export class Background {
 
 	_resize() {
 		if ( this._webGLSupport ) {
-			let fustrum = this._getViewFustrum();
-			this._camera.left = fustrum.left;
-			this._camera.right = fustrum.right;
-			this._camera.top = fustrum.top;
-			this._camera.bottom = fustrum.bottom;
-			this._camera.updateProjectionMatrix();
-
 			let windowSize = GetWindowSize();
+			this._mesh.position.set(0, 0, 0);
+			this._mesh.scale.set(0.25, 0.25, 1);
 			this._uniforms.resolution.value = new ThreeVector2(windowSize.x, windowSize.y);
 		}
-	}
-
-	_getViewFustrum() {
-		let windowSize = GetWindowSize();
-		let aspect = windowSize.x < windowSize.y ? windowSize.x/windowSize.y : windowSize.y/windowSize.x;
-		let rtn = {};
-		aspect/=2;
-
-		rtn.left = -aspect;
-		rtn.right = aspect;
-		rtn.top = 0.5;
-		rtn.bottom = -0.5;
-
-		if ( windowSize.x > windowSize.y ) {
-			let lTemp = rtn.left;
-			let rTemp = rtn.right;
-			rtn.left = rtn.bottom;
-			rtn.right = rtn.top;
-			rtn.bottom = lTemp;
-			rtn.top = rTemp;
-		}
-
-		return Object.freeze(rtn);
 	}
 
 	_update(dt) {
@@ -263,8 +232,6 @@ export class Background {
 					this._firstLoadState = FirstLoadState.Complete;
 				}
 			}
-
-			GL.draw(this._scene, this._camera, GetElementRect(this._domRoot), 0);
 		}
 		else {
 			if ( this._firstLoadState == FirstLoadState.Start ) {
