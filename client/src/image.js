@@ -38,7 +38,7 @@ const ImageGLVertexShader = `
 varying vec2 texCoord;
 void main() {
 	texCoord = uv;
-	gl_Position = projectionMatrix * vec4( position, 1.0 );
+	gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4( position, 1.0 );
 }
 `;
 const ImageGLFragmentShader = `
@@ -79,7 +79,7 @@ const ImageGLState = {
 export class ImageGL {
 	constructor(domRoot, navController, url, imageStateTransitionTime, loadingIndicatorTime, loadingIndicatorFactory) {
 		this._domRoot = domRoot;
-		this._fallBackImg = null;
+		this._img = null;
 		this._loaded = false;
 		this._loadingIndicator = loadingIndicatorFactory.new();
 		this._loadingIndicatorTime = loadingIndicatorTime;
@@ -106,6 +106,7 @@ export class ImageGL {
 			else {
 				this._loadImageFallBack();
 			}
+			this.resize();
 		});
 
 		this._subscriptions.push(UpdateController.updateSubject.subscribe( this._update.bind(this) ));
@@ -124,7 +125,7 @@ export class ImageGL {
 
 		if ( this._webGLSupport ) {
 			this._loadedWebGL = true;
-			this._mesh = null;
+			this._transform = null;
 			this._uniforms = {
 				strength: { value: 0 },
 				tex: { value: null },
@@ -136,21 +137,20 @@ export class ImageGL {
 			} );
 			material.transparent = true;
 			let geometry = new PlaneBufferGeometry(1, 1);
-			this._mesh = new Mesh(geometry, material);
-			//GL.add(this._mesh);
+			let mesh = new Mesh(geometry, material);
+			this._transform = GL.add(mesh);
 		}
 	}
 
 	_markLoaded(image) {
 		this._loaded = true;
-		this._fallBackImg = image;
+		this._img = image;
 		this._loadedSubject.next();
 		this._updateDomLoadingIndicator();
 	}
 
-	_resizeAndAppendImageFallBack(img) {
-		this._resizeFallbackImage(img);
-		this._domRoot.appendChild(img);
+	_appendImageFallBack() {
+		this._domRoot.appendChild(this._img);
 	}
 
 	_loadImageFallBack() {
@@ -158,21 +158,27 @@ export class ImageGL {
 			this._fallback = true;
 			this._webGLSupport = false;
 			if ( this._loadedWebGL ) {
-				this._mesh = null;
+				this._transform = null;
 				this._uniforms = null;
 				this._loader = null
 			}
 			if ( this._domRoot != null ) {
-				this._resizeAndAppendImageFallBack(this._fallBackImg);
+				this._appendImageFallBack();
 			}
 		}
 	}
-	_resizeFallbackImage(img) {
+	_resizeImage() {
 		let displayRect = GetElementRect(this._domRoot);
-		let naturalSize = new Vector2(img.naturalWidth, img.naturalHeight);
+		let naturalSize = new Vector2(this._img.naturalWidth, this._img.naturalHeight);
 		let imgSize = Resize(displayRect, naturalSize);
-		img.width = imgSize.w;
-		img.height = imgSize.h;
+		if ( this._webGLSupport ) {
+			this._transform.scale.set(imgSize.w, imgSize.h, 1);
+		}
+		else {
+			this._img.width = imgSize.w;
+			this._img.height = imgSize.h;
+		}
+		return imgSize;
 	}
 
 	_setStateTransitionIn() {
@@ -224,10 +230,8 @@ export class ImageGL {
 					}
 				}
 
-				let containerRect = GetElementRect(this._domRoot)
-				let img = this._uniforms.tex.value.image;
-				let imgSize = new Vector2(img.width, img.height);
-				let rect = Resize(containerRect, imgSize);
+				let rect = this._resizeImage();
+				this._transform.position.set(rect.x+rect.w/2, rect.y+rect.h/2, -10);
 			}
 			else {
 				if ( this._t >= this._nStateEnd ) {
@@ -243,14 +247,10 @@ export class ImageGL {
 
 	resize() {
 		if ( this._domRoot != null ) {
-			if ( this._webGLSupport ) {
-				this._setStateTrasitionInComplete();
+			if ( this._loaded ) {
+				this._resizeImage();
 			}
 			else {
-				this._resizeFallbackImage(this._fallBackImg);
-			}
-
-			if ( !this._loaded ) {
 				this._loadingIndicator.resize();
 			}
 		}
@@ -265,6 +265,7 @@ export class ImageGL {
 	destroy() {
 		this._loaded = false;
 		this._subscriptions.forEach( e => e.unsubscribe() );
+		GL.remove(this._transform);
 	}
 
 	_updateDomLoadingIndicator() {
@@ -281,15 +282,16 @@ export class ImageGL {
 	}
 	set domRoot(v) {
 		this._domRoot = v;
+		this.resize();
 		if ( !this._webGLSupport ) {
-			this._resizeAndAppendImageFallBack(this._fallBackImg);
+			this._appendImageFallBack();
 		}
 		this._updateDomLoadingIndicator();
 	}
 
 	get imageSize() {
 		if ( this._loaded ) {
-			let img = this._fallBackImg;
+			let img = this._img;
 			return new Vector2(img.naturalWidth, img.naturalHeight);
 		}
 		else {

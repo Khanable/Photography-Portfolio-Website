@@ -1,5 +1,5 @@
 import { UpdateController } from './update';
-import { Color, WebGLRenderer, MeshBasicMaterial, PlaneBufferGeometry, Mesh, Scene, OrthographicCamera } from 'three';
+import { Object3D, Color, WebGLRenderer, MeshBasicMaterial, PlaneBufferGeometry, Mesh, Scene, OrthographicCamera } from 'three';
 import { GetWindowSize } from './util.js';
 import * as Detector from 'three/examples/js/Detector.js';
 import { Vector2 } from './vector.js';
@@ -16,10 +16,11 @@ export class GLRenderer {
 		});
 
 		if ( this._webGLSupport ) {
-			this._camera = new OrthographicCamera( 0, 0, 0, 0, 0, 100 );
+			this._camera = new OrthographicCamera( -1, 1, 1, -1, 0, 100 );
 			this._scene = new Scene();
-			this._renderer = new WebGLRenderer( { alpha: true, stencilBuffer: false } );
-			this._renderer.setClearColor(new Color(0, 0, 0));
+			this._coordTransform = new Object3D()
+			this._scene.add(this._coordTransform);
+			this._renderer = new WebGLRenderer({alpha:true, depth:true, stencil:false});
 			this._renderer.setPixelRatio(window.devicePixelRatio);
 
 			document.body.appendChild(this._renderer.domElement);
@@ -50,22 +51,39 @@ export class GLRenderer {
 	_resize() {
 		if ( this._renderer.domElement.parentNode != undefined ) {
 			let size = GetWindowSize();
+			this._renderer.setSize(size.x, size.y);
+			this._renderer.domElement.setAttribute('style', 'width:100%;height:100%;position:absolute;');
 			let halfX = size.x/2;
 			let halfY = size.y/2;
-			this._camera.left = -1;
-			this._camera.right = 1;
-			this._camera.top = 1;
-			this._camera.bottom = -1;
-			this._camera.position.set(0.25, 0, 0);
+			this._camera.left = -halfX;
+			this._camera.right = halfX;
+			this._camera.top = halfY;
+			this._camera.bottom = -halfY;
+			this._camera.position.set(halfX, halfY, 0);
 			this._camera.updateProjectionMatrix();
-			this._renderer.setSize(size.x, size.y);
-			this._renderer.domElement.setAttribute('style', 'position:absolute;');
+			this._coordTransform.position.set(0, size.y, 0);
+			this._coordTransform.rotation.set(0, 0, -Math.PI);
+			this._coordTransform.scale.set(-1, 1, 1);
 		}
 	}
 
 	add(v) {
 		if ( this._webGLSupport ) {
-			this._scene.add(v);
+			let rtn = new Object3D();
+			this._coordTransform.add(rtn);
+			v.rotation.set(0, 0, Math.PI);
+			v.scale.set(-1, 1, 1);
+			rtn.add(v);
+			return rtn;
+		}
+		else {
+			throw new Error('WebGL not supported, or fallback has been loaded');
+		}
+	}
+
+	remove(v) {
+		if ( this._webGLSupport ) {
+			this._coordTransform.remove(v);
 		}
 		else {
 			throw new Error('WebGL not supported, or fallback has been loaded');
@@ -73,6 +91,7 @@ export class GLRenderer {
 	}
 
 	get webGLSupport() {
+		//return false;
 		return this._webGLSupport;
 	}
 }

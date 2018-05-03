@@ -1,5 +1,5 @@
 import { UpdateController } from './update';
-import { MeshBasicMaterial, Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath, Vector2 as ThreeVector2, Vector3 as ThreeVector3 } from 'three';
+import { OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath, Vector2 as ThreeVector2, Vector3 as ThreeVector3 } from 'three';
 import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
 import { Vector2 } from './vector.js';
 import { RandomRange, GetElementRect } from './util.js';
@@ -10,7 +10,7 @@ const Vertex = `
 varying vec2 texCoord;
 void main() {
 	texCoord = uv;
-	gl_Position = projectionMatrix * vec4( position, 1.0 );
+	gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4( position, 1.0 );
 }
 `;
 const Fragment = `
@@ -82,13 +82,12 @@ float cnoise(vec2 P)
 
 
 void main() {
-	float aspect = resolution.x/resolution.y;
-	float shortSide = resolution.x < resolution.y ? resolution.x : resolution.y;
-	vec2 st = texCoord.xy*aspect;
-	vec2 pos = st*wallEffectNoiseDistanceFactor*shortSide;
+	vec2 aspectAdjust = vec2(1.0, resolution.y/resolution.x);
+	vec2 texPos = texCoord*aspectAdjust;
+	vec2 pos = texPos*wallEffectNoiseDistanceFactor*resolution.x;
 	float n = cnoise(pos);
 
-	float centreDistance = distance(vec2(0.5, 0.5), texCoord);
+	float centreDistance = distance(vec2(0.5, 0.5)*aspectAdjust, texPos);
 	float invertedDistance = pow(1.0-centreDistance, fallOffFactor);
 	//Inverse Square law
 	//https://en.wikipedia.org/wiki/Inverse-square_law
@@ -103,11 +102,11 @@ void main() {
 
 
 const Settings = {
-	strength: 2.5,
+	strength: 3.0,
 	firstLoadDarkTime: 0.75,
 	firstLoadWarmTime: 3,
 	lightColor: new ThreeVector3(1, 0.839, 0.667),
-	fallOffFactor: 3.0,
+	fallOffFactor: 2.5,
 }
 
 const FirstLoadState = {
@@ -149,10 +148,9 @@ export class Background {
 				vertexShader: Vertex,
 				fragmentShader: Fragment.format(Settings.lightColor.x, Settings.lightColor.y, Settings.lightColor.z, Settings.fallOffFactor.toFixed(1)),
 			} );
-			material = new MeshBasicMaterial();
 			let geometry = new PlaneBufferGeometry(1, 1);
-			this._mesh = new Mesh(geometry, material);
-			GL.add(this._mesh);
+			let mesh = new Mesh(geometry, material);
+			this._transform = GL.add(mesh);
 		}
 		else {
 			this._loadFallbackDom();
@@ -173,7 +171,7 @@ export class Background {
 			this._fallback = true;
 			this._webGLSupport = false;
 			if ( this._loadedWebGL ) {
-				this._mesh = null;
+				this._transform = null;
 				this._uniforms = null;
 			}
 			let backgroundDom = document.createElement('div');
@@ -181,10 +179,13 @@ export class Background {
 			let lightColor = [Settings.lightColor.x, Settings.lightColor.y, Settings.lightColor.z];
 			let strength = Settings.strength;
 			let fallOffFactor = Settings.fallOffFactor;
-			//Overshoot the % to get the correct gradient.
-			for(let i = 0; i < 190; i++) {
-				let radius = i/190;
-				let invertedDistance = Math.pow(1-radius, fallOffFactor);
+			for(let i = 0; i < 101; i++) {
+				//Radius to distance here as the 0% is the center of the screen, 100% being the edge of the screen
+				//0% = 0.5, 100% = 1
+				//Why do we half it? can't figure it out
+				let curDistance = 0.5+(i/101)*0.5;
+				let centreDistance = curDistance - 0.5;
+				let invertedDistance = Math.pow(1.0-centreDistance, fallOffFactor);
 				let intensity = strength / 4.0*3.14159265359*Math.pow(invertedDistance, 2.0);
 				let data = lightColor.map(e => Math.round(e*intensity*256));
 				data.push(i);
@@ -199,8 +200,8 @@ export class Background {
 	_resize() {
 		if ( this._webGLSupport ) {
 			let windowSize = GetWindowSize();
-			this._mesh.position.set(0, 0, 0);
-			this._mesh.scale.set(0.25, 0.25, 1);
+			this._transform.scale.set(windowSize.x, windowSize.y, 1);
+			this._transform.position.set(windowSize.x/2, windowSize.y/2, -100);
 			this._uniforms.resolution.value = new ThreeVector2(windowSize.x, windowSize.y);
 		}
 	}
