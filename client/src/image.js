@@ -1,3 +1,4 @@
+import { FallbackNotifier } from './fallbackNotifier.js';
 import { GLBase } from './gl.js';
 import { Subject } from 'rxjs';
 import { Rect } from './rect.js';
@@ -92,14 +93,14 @@ export class ImageGL {
 		this._stateTransitionOutStrengthStart = 0;
 		this._subscriptions = [];
 		this._url = url;
-		this._webGLSupport = GL.webGLSupport;
-		this._fallback = false;
-		this._loadedWebGL = false;
+		this._lastFallback = false;
+		this._firstLoad = false;
 		this._loader = new TextureLoader();
 
 		this._loader.load(url, (texture) => {
 			this._markLoaded(texture.image);
-			if ( this._webGLSupport ) {
+			if ( !this._lastFallback ) {
+				this._loadWebGL();
 				this._uniforms.tex.value = texture;
 				texture.minFilter = LinearFilter;
 			}
@@ -115,31 +116,53 @@ export class ImageGL {
 		}));
 		this._updateDomLoadingIndicator();
 
-		this._lowFrameRateSubscription = UpdateController.frameRateLowSubject.subscribe( e => {
-			if ( e ) {
-				this._lowFrameRateSubscription.unsubscribe();
-				this._loadImageFallBack();
+		FallbackNotifier.fallbackSubject.subscribe( e => {
+			if ( this._loaded ) {
+				this._cleanup();
+				if ( e ) {
+					this._loadImageFallBack();
+				}
+				else {
+					this._loadWebGL();
+				}
+				this._firstLoad = true;
+			}
+			else {
+				this._lastFallback = e;
 			}
 		});
-		this._subscriptions.push(this._lowFrameRateSubscription);
 
-		if ( this._webGLSupport ) {
-			this._loadedWebGL = true;
-			this._transform = null;
-			this._uniforms = {
-				strength: { value: 0 },
-				tex: { value: null },
-			};
-			let material = new ShaderMaterial( {
-				uniforms: this._uniforms,
-				vertexShader: ImageGLVertexShader,
-				fragmentShader: ImageGLFragmentShader,
-			} );
-			material.transparent = true;
-			let geometry = new PlaneBufferGeometry(1, 1);
-			let mesh = new Mesh(geometry, material);
-			this._transform = GL.add(mesh);
+	}
+
+	_cleanup() {
+		if ( this._firstLoad ) {
+			if ( this._lastFallback ) {
+				this._domRoot.removeChild(this._img);
+			}
+			else {
+				this._transform = null;
+				this._uniforms = null;
+			}
 		}
+	}
+
+	_loadWebGL() {
+		this._lastFallback = false;
+
+		this._transform = null;
+		this._uniforms = {
+			strength: { value: 0 },
+			tex: { value: null },
+		};
+		let material = new ShaderMaterial( {
+			uniforms: this._uniforms,
+			vertexShader: ImageGLVertexShader,
+			fragmentShader: ImageGLFragmentShader,
+		} );
+		material.transparent = true;
+		let geometry = new PlaneBufferGeometry(1, 1);
+		let mesh = new Mesh(geometry, material);
+		this._transform = GL.add(mesh);
 	}
 
 	_markLoaded(image) {
@@ -154,14 +177,8 @@ export class ImageGL {
 	}
 
 	_loadImageFallBack() {
-		if ( !this._fallback && this._loaded ) {
-			this._fallback = true;
-			this._webGLSupport = false;
-			if ( this._loadedWebGL ) {
-				this._transform = null;
-				this._uniforms = null;
-				this._loader = null
-			}
+		if ( !this._lastFallback && this._loaded ) {
+			this._lastFallback = true;
 			if ( this._domRoot != null ) {
 				this._appendImageFallBack();
 			}
@@ -171,7 +188,7 @@ export class ImageGL {
 		let displayRect = GetElementRect(this._domRoot);
 		let naturalSize = new Vector2(this._img.naturalWidth, this._img.naturalHeight);
 		let imgSize = Resize(displayRect, naturalSize);
-		if ( this._webGLSupport ) {
+		if ( !this._lastFallback ) {
 			this._transform.scale.set(imgSize.w, imgSize.h, 1);
 		}
 		else {
@@ -203,7 +220,7 @@ export class ImageGL {
 		this._t+=dt;
 
 		if ( this._domRoot != null ) {
-			if ( this._loaded && this._webGLSupport ) {
+			if ( this._loaded && !this._lastFallback ) {
 				if ( this._curState == ImageGLState.Created && !this._transitioning) {
 					this._setStateTransitionIn();
 				}
@@ -257,7 +274,7 @@ export class ImageGL {
 	}
 
 	unload() {
-		if ( this._webGLSupport ) {
+		if ( !this._lastFallback ) {
 			this._setStateTransitionOut();
 		}
 	}
@@ -283,7 +300,7 @@ export class ImageGL {
 	set domRoot(v) {
 		this._domRoot = v;
 		this.resize();
-		if ( !this._webGLSupport ) {
+		if ( this._lastFallback ) {
 			this._appendImageFallBack();
 		}
 		this._updateDomLoadingIndicator();
