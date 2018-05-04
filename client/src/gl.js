@@ -83,8 +83,8 @@ export class GLRenderer {
 	}
 
 	get webGLSupport() {
-		//return false;
-		return this._webGLSupport;
+		return false;
+		//return this._webGLSupport;
 	}
 }
 
