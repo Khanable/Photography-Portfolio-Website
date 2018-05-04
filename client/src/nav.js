@@ -4,8 +4,7 @@ import { Vector2 } from './vector.js';
 import { RemoveAllChildren,SizeText, AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
 import { Subject, ReplaySubject } from 'rxjs';
 import './util.js';
-import 'url-parse';
-
+let URLParse = require('url-parse');
 
 const ContentSelector = '#navContent';
 const ArrowNorthSelector = '#navArrowN';
@@ -652,7 +651,7 @@ export class NavGraph {
 
 	getFromUrl(urlStr) {
 		let rtn = this._root;
-		let url = new URL(urlStr);
+		let url = new URLParse(urlStr);
 		let urlPath = url.pathname.split('/').filter( e => e != '' );
 
 		let foundPath = true;

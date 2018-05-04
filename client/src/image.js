@@ -78,8 +78,8 @@ const ImageGLState = {
 }
 
 export class ImageGL {
-	constructor(domRoot, navController, url, imageStateTransitionTime, loadingIndicatorTime, loadingIndicatorFactory) {
-		this._domRoot = domRoot;
+	constructor(navController, url, imageStateTransitionTime, loadingIndicatorTime, loadingIndicatorFactory) {
+		this._domRoot = null;
 		this._img = null;
 		this._loaded = false;
 		this._loadingIndicator = loadingIndicatorFactory.new();
@@ -98,16 +98,7 @@ export class ImageGL {
 		this._loader = new TextureLoader();
 
 		this._loader.load(url, (texture) => {
-			this._markLoaded(texture.image);
-			if ( !this._lastFallback ) {
-				this._loadWebGL();
-				this._uniforms.tex.value = texture;
-				texture.minFilter = LinearFilter;
-			}
-			else {
-				this._loadImageFallBack();
-			}
-			this.resize();
+			this._markLoaded(texture);
 		});
 
 		this._subscriptions.push(UpdateController.updateSubject.subscribe( this._update.bind(this) ));
@@ -117,17 +108,9 @@ export class ImageGL {
 		this._updateDomLoadingIndicator();
 
 		FallbackNotifier.fallbackSubject.subscribe( e => {
-			if ( this._loaded ) {
-				this._cleanup();
-				if ( e ) {
-					this._loadImageFallBack();
-				}
-				else {
-					this._loadWebGL();
-				}
-				this._firstLoad = true;
-			}
-			else {
+			this._init(e);
+
+			if ( !this._loaded ) {
 				this._lastFallback = e;
 			}
 		});
@@ -135,25 +118,24 @@ export class ImageGL {
 	}
 
 	_cleanup() {
-		if ( this._firstLoad ) {
-			if ( this._lastFallback ) {
-				this._domRoot.removeChild(this._img);
-			}
-			else {
-				this._transform = null;
-				this._uniforms = null;
-			}
+		if ( this._lastFallback ) {
+			this._domRoot.removeChild(this._img);
+		}
+		else {
+			this._transform = null;
+			this._uniforms = null;
 		}
 	}
 
 	_loadWebGL() {
 		this._lastFallback = false;
 
-		this._transform = null;
 		this._uniforms = {
 			strength: { value: 0 },
 			tex: { value: null },
 		};
+		this._uniforms.tex.value = this._texture;
+		
 		let material = new ShaderMaterial( {
 			uniforms: this._uniforms,
 			vertexShader: ImageGLVertexShader,
@@ -165,9 +147,11 @@ export class ImageGL {
 		this._transform = GL.add(mesh);
 	}
 
-	_markLoaded(image) {
+	_markLoaded(texture) {
 		this._loaded = true;
-		this._img = image;
+		this._texture = texture;
+		this._texture.minFilter = LinearFilter;
+		this._img = texture.image;
 		this._loadedSubject.next();
 		this._updateDomLoadingIndicator();
 	}
@@ -177,11 +161,9 @@ export class ImageGL {
 	}
 
 	_loadImageFallBack() {
-		if ( !this._lastFallback && this._loaded ) {
-			this._lastFallback = true;
-			if ( this._domRoot != null ) {
-				this._appendImageFallBack();
-			}
+		this._lastFallback = true;
+		if ( this._domRoot != null ) {
+			this._appendImageFallBack();
 		}
 	}
 	_resizeImage() {
@@ -282,7 +264,9 @@ export class ImageGL {
 	destroy() {
 		this._loaded = false;
 		this._subscriptions.forEach( e => e.unsubscribe() );
-		GL.remove(this._transform);
+		if ( !this._lastFallback ) {
+			GL.remove(this._transform);
+		}
 	}
 
 	_updateDomLoadingIndicator() {
@@ -297,13 +281,28 @@ export class ImageGL {
 			}
 		}
 	}
-	set domRoot(v) {
-		this._domRoot = v;
-		this.resize();
-		if ( this._lastFallback ) {
-			this._appendImageFallBack();
+
+	_init(fallbackState) {
+		if ( this._loaded ) {
+			if ( this._firstLoad ) {
+				this._cleanup();
+			}
+
+			if ( fallbackState ) {
+				this._loadImageFallBack();
+			}
+			else {
+				this._loadWebGL();
+			}
+			this._firstLoad = true;
+			this.resize();
 		}
 		this._updateDomLoadingIndicator();
+	}
+
+	set domRoot(v) {
+		this._domRoot = v;
+		this._init(this._lastFallback);
 	}
 
 	get imageSize() {

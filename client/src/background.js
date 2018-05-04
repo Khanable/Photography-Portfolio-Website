@@ -137,7 +137,10 @@ export class Background {
 		};
 
 		FallbackNotifier.fallbackSubject.subscribe( e => {
-			this._cleanup();
+			if ( this._firstLoad ) {
+				this._cleanup();
+			}
+
 			if ( e ) {
 				this._loadFallbackDom();
 			}
@@ -151,20 +154,18 @@ export class Background {
 	}
 
 	_cleanup() {
-		if ( this._firstLoad ) {
-			if ( this._lastFallback ) {
-				this._domRoot.removeChild(this._backgroundDom);
-				this._backgroundDom = null;
-			}
-			else {
-				this._uniforms = null;
-				this._transform = null;
-			}
+		if ( this._lastFallback ) {
+			this._domRoot.removeChild(this._backgroundDom);
+			this._backgroundDom = null;
+		}
+		else {
+			this._uniforms = null;
+			this._transform = null;
 		}
 	}
 
 	_loadWebGL() {
-		this._lastFallback = true;
+		this._lastFallback = false;
 
 		this._uniforms = {
 			strength: { value: Settings.strength },
@@ -182,7 +183,7 @@ export class Background {
 	}
 
 	_loadFallbackDom() {
-		this._lastFallback = false;
+		this._lastFallback = true;
 
 		this._backgroundDom = document.createElement('div');
 		let intervals = [];
@@ -201,9 +202,9 @@ export class Background {
 			data.push(i);
 			intervals.push(String.prototype.format.apply('rgb({0}, {1}, {2}) {3}%', data));
 		}
-		backgroundDom.setAttribute('style', 'width:100%;height:100%;background:radial-gradient(circle, {0});'.format(intervals.join(',')));
+		this._backgroundDom.setAttribute('style', 'width:100%;height:100%;background:radial-gradient(circle, {0});'.format(intervals.join(',')));
 
-		this._domRoot.appendChild(backgroundDom);
+		this._domRoot.appendChild(this._backgroundDom);
 	}
 
 	_resize() {
@@ -218,7 +219,7 @@ export class Background {
 	_update(dt) {
 		this._t+=dt;
 
-		if ( !this.lastFallback) {
+		if ( !this._lastFallback) {
 			if ( this._firstLoadState == FirstLoadState.Start) {
 				this._firstLoadState = FirstLoadState.Dark;
 				this._nFirstLoadState = this._t+Settings.firstLoadDarkTime;

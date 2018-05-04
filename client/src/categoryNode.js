@@ -85,7 +85,7 @@ export class CategoryNode extends NavNode {
 		this._setupTable(numRows, new Vector2(baseCellSize.x*this._numPerRow, baseCellSize.y));
 		for( let url of this._photoUrls ) {
 			let photoClass = GetMatchingPhotoClassSize(baseCellSize);
-			let image = new ImageGL(null, Controller.navController, GetPhotoUrl(url, photoClass), this._imageTransitionTime, this._loadingTransitionTime, this._loadingIndicatorFactory);
+			let image = new ImageGL(Controller.navController, GetPhotoUrl(url, photoClass), this._imageTransitionTime, this._loadingTransitionTime, this._loadingIndicatorFactory);
 			this._images.push(image);
 			this._subscriptions.push(image.loadedSubject.subscribe( () => {
 				if ( this._images.every( e => e.isLoaded ) ) {

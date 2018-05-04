@@ -3,7 +3,7 @@ import { default as fallbackNotifierHtml } from './fallbackNotifier.html';
 import { GetElementSize, LoadHtml } from './util.js';
 import { ReplaySubject } from 'rxjs/ReplaySubject';
 import * as Detector from 'three/examples/js/Detector.js';
-import 'url-parse';
+let URLParse = require('url-parse');
 
 const Entry = {
 	LowFrameRate: 0,
@@ -62,20 +62,19 @@ class _FallbackNotifier {
 				this._showFallback(Entry.LowFrameRate);
 			}
 		});
-
 	}
 
 	_loadHardSetting() {
 		let fromURL = false;
-		console.log(document.URL);
-		let url = new URL(document.URL);
-		let match = /fallback=(true|false)/.exec(url.query);
-		if ( match ) {
+		let url = new URLParse(document.URL);
+		let fallback = /fallback=(true|false)/.exec(url.query);
+		if ( fallback ) {
 			fromURL = true;
-			if ( match[1] == 'true' ) {
+			if ( fallback[1] == 'true' ) {
+				this._hardSetting = true;
 				this._writeHardSetting();
 			}
-			else if ( match[1] == 'false' ) {
+			else if ( fallback[1] == 'false' ) {
 				this._clearHardSetting();
 			}
 		}
@@ -94,7 +93,7 @@ class _FallbackNotifier {
 	}
 
 	_clearHardSetting() {
-		window.localStorage.deleteItem('hardFallback');
+		window.localStorage.removeItem('hardFallback');
 	}
 
 	setFallback(v) {
