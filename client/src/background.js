@@ -1,16 +1,17 @@
 import { UpdateController } from './update';
-import { Color, OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath, Vector2 as ThreeVector2, Vector3 as ThreeVector3 } from 'three';
+import { OrthographicCamera, Scene, PlaneBufferGeometry, Mesh, ShaderMaterial, Math as ThreeMath, Vector2 as ThreeVector2, Vector3 as ThreeVector3 } from 'three';
 import { GetElementSize, AppendAttribute, GetWindowSize } from './util.js';
 import { Vector2 } from './vector.js';
 import { RandomRange, GetElementRect } from './util.js';
-import { GL, GLBase } from './gl.js';
+import { GL } from './gl.js';
 import './util.js';
+import { FallbackNotifier } from './fallbackNotifier.js';
 
 const Vertex = `
 varying vec2 texCoord;
 void main() {
 	texCoord = uv;
-	gl_Position = projectionMatrix * vec4( position, 1.0 );
+	gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4( position, 1.0 );
 }
 `;
 const Fragment = `
@@ -82,13 +83,12 @@ float cnoise(vec2 P)
 
 
 void main() {
-	float aspect = resolution.x/resolution.y;
-	float shortSide = resolution.x < resolution.y ? resolution.x : resolution.y;
-	vec2 st = texCoord.xy*aspect;
-	vec2 pos = st*wallEffectNoiseDistanceFactor*shortSide;
+	vec2 aspectAdjust = vec2(1.0, resolution.y/resolution.x);
+	vec2 texPos = texCoord*aspectAdjust;
+	vec2 pos = texPos*wallEffectNoiseDistanceFactor*resolution.x;
 	float n = cnoise(pos);
 
-	float centreDistance = distance(vec2(0.5, 0.5), texCoord);
+	float centreDistance = distance(vec2(0.5, 0.5)*aspectAdjust, texPos);
 	float invertedDistance = pow(1.0-centreDistance, fallOffFactor);
 	//Inverse Square law
 	//https://en.wikipedia.org/wiki/Inverse-square_law
@@ -103,11 +103,11 @@ void main() {
 
 
 const Settings = {
-	strength: 2.5,
+	strength: 3.0,
 	firstLoadDarkTime: 0.75,
 	firstLoadWarmTime: 3,
 	lightColor: new ThreeVector3(1, 0.839, 0.667),
-	fallOffFactor: 3.0,
+	fallOffFactor: 2.5,
 }
 
 const FirstLoadState = {
@@ -126,9 +126,8 @@ export class Background {
 		this._t = 0;
 		this._nFirstLoadState = 0;
 		this._finishFirstLoadCallback = null;
-		this._webGLSupport = GL.webGLSupport;
-		this._loadedWebGL = false;
-		this._fallback = false;
+		this._firstLoad = false;
+		this._lastFallback = false;
 
 		UpdateController.updateSubject.subscribe( this._update.bind(this) );
 		window.addEventListener('resize', this._resize.bind(this));
@@ -137,110 +136,89 @@ export class Background {
 			this._finishFirstLoadCallback = e.transitionSlide;
 		};
 
-		if ( this._webGLSupport ) {
-			this._loadedWebGL = true;
-			this._camera = new OrthographicCamera( -1, 1, 1, -1, 0, 1 );
-			this._scene = new Scene();
-			this._mesh = null;
-			this._uniforms = {
-				strength: { value: Settings.strength },
-				fallOffFactor: { value: Settings.fallOffFactor },
-				resolution: { value: new ThreeVector2(1, 1) },
-			};
-			let material = new ShaderMaterial( {
-				uniforms: this._uniforms,
-				vertexShader: Vertex,
-				fragmentShader: Fragment.format(Settings.lightColor.x, Settings.lightColor.y, Settings.lightColor.z, Settings.fallOffFactor.toFixed(1)),
-			} );
-			let geometry = new PlaneBufferGeometry(1, 1);
-			this._mesh = new Mesh(geometry, material);
-			this._scene.add(this._mesh);
-		}
-		else {
-			this._loadFallbackDom();
-		}
-
-		this._lowFrameRateSubscription = UpdateController.frameRateLowSubject.subscribe( e => {
+		FallbackNotifier.fallbackSubject.subscribe( e => {
+			this._cleanup();
 			if ( e ) {
-				this._lowFrameRateSubscription.unsubscribe();
 				this._loadFallbackDom();
 			}
+			else {
+				this._loadWebGL();
+			}
+			this._firstLoad = true;
 		});
 
 		this._resize();
 	}
 
-	_loadFallbackDom() {
-		if ( !this._fallback ) {
-			this._fallback = true;
-			this._webGLSupport = false;
-			if ( this._loadedWebGL ) {
-				this._camera = null;
-				this._scene = null;
-				this._mesh = null;
+	_cleanup() {
+		if ( this._firstLoad ) {
+			if ( this._lastFallback ) {
+				this._domRoot.removeChild(this._backgroundDom);
+				this._backgroundDom = null;
+			}
+			else {
 				this._uniforms = null;
+				this._transform = null;
 			}
-			let backgroundDom = document.createElement('div');
-			let intervals = [];
-			let lightColor = [Settings.lightColor.x, Settings.lightColor.y, Settings.lightColor.z];
-			let strength = Settings.strength;
-			let fallOffFactor = Settings.fallOffFactor;
-			//Overshoot the % to get the correct gradient.
-			for(let i = 0; i < 190; i++) {
-				let radius = i/190;
-				let invertedDistance = Math.pow(1-radius, fallOffFactor);
-				let intensity = strength / 4.0*3.14159265359*Math.pow(invertedDistance, 2.0);
-				let data = lightColor.map(e => Math.round(e*intensity*256));
-				data.push(i);
-				intervals.push(String.prototype.format.apply('rgb({0}, {1}, {2}) {3}%', data));
-			}
-			backgroundDom.setAttribute('style', 'width:100%;height:100%;background:radial-gradient(circle, {0});'.format(intervals.join(',')));
-
-			this._domRoot.appendChild(backgroundDom);
 		}
+	}
+
+	_loadWebGL() {
+		this._lastFallback = true;
+
+		this._uniforms = {
+			strength: { value: Settings.strength },
+			fallOffFactor: { value: Settings.fallOffFactor },
+			resolution: { value: new ThreeVector2(1, 1) },
+		};
+		let material = new ShaderMaterial( {
+			uniforms: this._uniforms,
+			vertexShader: Vertex,
+			fragmentShader: Fragment.format(Settings.lightColor.x, Settings.lightColor.y, Settings.lightColor.z, Settings.fallOffFactor.toFixed(1)),
+		} );
+		let geometry = new PlaneBufferGeometry(1, 1);
+		let mesh = new Mesh(geometry, material);
+		this._transform = GL.add(mesh);
+	}
+
+	_loadFallbackDom() {
+		this._lastFallback = false;
+
+		this._backgroundDom = document.createElement('div');
+		let intervals = [];
+		let lightColor = [Settings.lightColor.x, Settings.lightColor.y, Settings.lightColor.z];
+		let strength = Settings.strength;
+		let fallOffFactor = Settings.fallOffFactor;
+		for(let i = 0; i < 101; i++) {
+			//Radius to distance here as the 0% is the center of the screen, 100% being the edge of the screen
+			//0% = 0.5, 100% = 1
+			//Why do we half it? can't figure it out
+			let curDistance = 0.5+(i/101)*0.5;
+			let centreDistance = curDistance - 0.5;
+			let invertedDistance = Math.pow(1.0-centreDistance, fallOffFactor);
+			let intensity = strength / 4.0*3.14159265359*Math.pow(invertedDistance, 2.0);
+			let data = lightColor.map(e => Math.round(e*intensity*256));
+			data.push(i);
+			intervals.push(String.prototype.format.apply('rgb({0}, {1}, {2}) {3}%', data));
+		}
+		backgroundDom.setAttribute('style', 'width:100%;height:100%;background:radial-gradient(circle, {0});'.format(intervals.join(',')));
+
+		this._domRoot.appendChild(backgroundDom);
 	}
 
 	_resize() {
-		if ( this._webGLSupport ) {
-			let fustrum = this._getViewFustrum();
-			this._camera.left = fustrum.left;
-			this._camera.right = fustrum.right;
-			this._camera.top = fustrum.top;
-			this._camera.bottom = fustrum.bottom;
-			this._camera.updateProjectionMatrix();
-
+		if ( !this._lastFallback ) {
 			let windowSize = GetWindowSize();
+			this._transform.scale.set(windowSize.x, windowSize.y, 1);
+			this._transform.position.set(windowSize.x/2, windowSize.y/2, -100);
 			this._uniforms.resolution.value = new ThreeVector2(windowSize.x, windowSize.y);
 		}
-	}
-
-	_getViewFustrum() {
-		let windowSize = GetWindowSize();
-		let aspect = windowSize.x < windowSize.y ? windowSize.x/windowSize.y : windowSize.y/windowSize.x;
-		let rtn = {};
-		aspect/=2;
-
-		rtn.left = -aspect;
-		rtn.right = aspect;
-		rtn.top = 0.5;
-		rtn.bottom = -0.5;
-
-		if ( windowSize.x > windowSize.y ) {
-			let lTemp = rtn.left;
-			let rTemp = rtn.right;
-			rtn.left = rtn.bottom;
-			rtn.right = rtn.top;
-			rtn.bottom = lTemp;
-			rtn.top = rTemp;
-		}
-
-		return Object.freeze(rtn);
 	}
 
 	_update(dt) {
 		this._t+=dt;
 
-		if ( this._webGLSupport ) {
+		if ( !this.lastFallback) {
 			if ( this._firstLoadState == FirstLoadState.Start) {
 				this._firstLoadState = FirstLoadState.Dark;
 				this._nFirstLoadState = this._t+Settings.firstLoadDarkTime;
@@ -264,8 +242,6 @@ export class Background {
 					this._firstLoadState = FirstLoadState.Complete;
 				}
 			}
-
-			GL.draw(this._scene, this._camera, GetElementRect(this._domRoot), 0);
 		}
 		else {
 			if ( this._firstLoadState == FirstLoadState.Start ) {

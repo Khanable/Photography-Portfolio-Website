@@ -1,90 +1,110 @@
+import { FallbackNotifier } from './fallbackNotifier.js';
 import { UpdateController } from './update';
-import { Color, WebGLRenderer } from 'three';
-import { AppendAttribute, GetWindowSize } from './util.js';
-import * as Detector from 'three/examples/js/Detector.js';
-
-class Draw {
-	constructor(scene, camera, viewportRect, layer) {
-		this.scene = scene;
-		this.camera = camera;
-		this.viewportRect = viewportRect;
-		this.layer = layer;
-	}
-}
+import { Object3D, Color, WebGLRenderer, MeshBasicMaterial, PlaneBufferGeometry, Mesh, Scene, OrthographicCamera } from 'three';
+import { GetWindowSize } from './util.js';
+import { Vector2 } from './vector.js';
 
 export class GLRenderer {
 	constructor() {
-		this._webGLSupport = Detector.webgl;
+		this._firstLoad = false;
+		this._lastFallback = false;
 
-		this._lowFrameRateSubscription = UpdateController.frameRateLowSubject.subscribe( e => {
+		FallbackNotifier.fallbackSubject.subscribe( e => {
+			this._cleanup();
+
 			if ( e ) {
-				this._lowFrameRateSubscription.unsubscribe();
 				this._loadFallback();
 			}
+			else {
+				this._loadWebGL();
+			}
+
+			this._firstLoad = true;
 		});
 
-		if ( this._webGLSupport ) {
-			this._renderer = new WebGLRenderer( { alpha: true, depth: false } );
-			this._renderer.setPixelRatio(window.devicePixelRatio);
-			this._renderer.autoClear = false;
-			this._renderer.sortObjects = false;
+	}
 
-			this._draws = [];
-
-			document.body.appendChild(this._renderer.domElement);
-			this._resizeEventHook = this._resize.bind(this);
-			window.addEventListener('resize', this._resizeEventHook );
-
-			this._renderSubscription = UpdateController.renderSubject.subscribe(this._render.bind(this));
-			this._resize();
+	_cleanup() {
+		if ( this._firstLoad ) {
+			if ( !this._lastFallback ) {
+				document.body.removeChild(this._renderer.domElement);
+				this._renderer = null;
+				this._camera = null;
+				this._scene = null;
+				this._coordTransform = null;
+				window.removeEventListener('resize', this._resizeEventHook);
+				this._renderSubscription.unsubscribe();
+			}
 		}
+	}
+
+	_loadWebGL() {
+		this._lastFallback = false;
+
+		this._camera = new OrthographicCamera( -1, 1, 1, -1, 0, 100 );
+		this._scene = new Scene();
+		this._coordTransform = new Object3D()
+		this._scene.add(this._coordTransform);
+		this._renderer = new WebGLRenderer({alpha:true, depth:true, stencil:false});
+		this._renderer.setPixelRatio(window.devicePixelRatio);
+
+		document.body.appendChild(this._renderer.domElement);
+		this._resizeEventHook = this._resize.bind(this);
+		window.addEventListener('resize', this._resizeEventHook );
+
+		this._renderSubscription = UpdateController.renderSubject.subscribe(this._render.bind(this));
+		this._resize();
 	}
 
 	_loadFallback() {
-		if ( this._webGLSupport ) {
-			this._webGLSupport = false;
-			document.body.removeChild(this._renderer.domElement);
-			this._renderer = null;
-			this._draws = null;
-			window.removeEventListener('resize', this._resizeEventHook);
-			this._renderSubscription.unsubscribe();
-		}
+		this._lastFallback = true;
+
 	}
 
 	_render(dt) {
-		this._renderer.setScissorTest(false);
-		this._renderer.setClearColor(new Color(0, 0, 0), 1);
-		this._renderer.clear();
-		this._renderer.setScissorTest(true);
-		let draws = this._draws.sort( (a, b) => b.layer-a.layer );
-		while( draws.length > 0 ) {
-			let e = draws.pop();
-			this._renderer.setViewport(e.viewportRect.x, e.viewportRect.y, e.viewportRect.w, e.viewportRect.h);
-			this._renderer.setScissor(e.viewportRect.x, e.viewportRect.y, e.viewportRect.w, e.viewportRect.h);
-			this._renderer.render(e.scene, e.camera);
-		}
+		this._renderer.render(this._scene, this._camera);
 	}
 
 	_resize() {
-		if ( this._renderer.domElement.parentNode ) {
+		if ( this._renderer.domElement.parentNode != undefined ) {
 			let size = GetWindowSize();
 			this._renderer.setSize(size.x, size.y);
-			AppendAttribute(this._renderer.domElement, 'style', 'position:absolute;');
+			this._renderer.domElement.setAttribute('style', 'width:100%;height:100%;position:absolute;');
+			let halfX = size.x/2;
+			let halfY = size.y/2;
+			this._camera.left = -halfX;
+			this._camera.right = halfX;
+			this._camera.top = halfY;
+			this._camera.bottom = -halfY;
+			this._camera.position.set(halfX, halfY, 0);
+			this._camera.updateProjectionMatrix();
+			this._coordTransform.position.set(0, size.y, 0);
+			this._coordTransform.rotation.set(0, 0, -Math.PI);
+			this._coordTransform.scale.set(-1, 1, 1);
 		}
 	}
 
-	draw(scene, camera, viewportRect, layer) {
-		if ( this._webGLSupport ) {
-			this._draws.push(new Draw(scene, camera, viewportRect, layer));
+	add(v) {
+		if ( !this._lastFallback ) {
+			let rtn = new Object3D();
+			this._coordTransform.add(rtn);
+			v.rotation.set(0, 0, Math.PI);
+			v.scale.set(-1, 1, 1);
+			rtn.add(v);
+			return rtn;
 		}
 		else {
-			throw new Error('WebGL not supported, or fallback loaded');
+			throw new Error('WebGL not supported, or fallback has been loaded');
 		}
 	}
 
-	get webGLSupport() {
-		return false;
-		//return this._webGLSupport;
+	remove(v) {
+		if ( !this._lastFallback ) {
+			this._coordTransform.remove(v);
+		}
+		else {
+			throw new Error('WebGL not supported, or fallback has been loaded');
+		}
 	}
 }
 

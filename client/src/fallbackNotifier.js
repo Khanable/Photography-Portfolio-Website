@@ -1,16 +1,20 @@
 import { UpdateController } from './update.js';
-import { GL } from './gl.js';
 import { default as fallbackNotifierHtml } from './fallbackNotifier.html';
 import { GetElementSize, LoadHtml } from './util.js';
+import { ReplaySubject } from 'rxjs/ReplaySubject';
+import * as Detector from 'three/examples/js/Detector.js';
+import 'url-parse';
 
 const Entry = {
 	LowFrameRate: 0,
 	NoWEBGL: 1,
+	HardSetting: 2,
 }
 
 const FallbackText = {};
 FallbackText[Entry.LowFrameRate] = 'Framerate low, Fallback used';
 FallbackText[Entry.NoWEBGL] = 'Browser does not support WEBGL, Fallback used';
+FallbackText[Entry.HardSetting] = 'Fallback setting enabled';
 
 const StylePositionFormat = 'top:{0}px';
 
@@ -22,7 +26,7 @@ const NotifierState = {
 	Complete: 4,
 }
 
-export class FallbackNotifier {
+class _FallbackNotifier {
 	constructor(displayTime, animateSpeed) {
 		this._fallBackDom = LoadHtml(fallbackNotifierHtml).querySelector('#root');
 		this._domRootStyle = this._fallBackDom.getAttribute('style');
@@ -33,21 +37,83 @@ export class FallbackNotifier {
 		this._animateSpeed = animateSpeed;
 		this._updateSubscription = null;
 		this._time = 0;
+		this._fallbackSubject = new ReplaySubject(1);
+		this._fallback = false;
+		this._hardSetting = false;
+		this._webGLSupport = Detector.webgl;
 
 		this._curState = NotifierState.Init;
 		this._nStateEnd = null;
 
-		if ( !GL.webGLSupport ) {
-			this.showFallback(Entry.NoWEBGL);
+		this._loadHardSetting();
+
+		if ( !this._webGLSupport ) {
+			this._showFallback(Entry.NoWEBGL);
+		}
+		else if ( this._hardSetting ) {
+			this._showFallback(Entry.HardSetting);
+		}
+		else {
+			this._fallbackSubject.next(false);
 		}
 
-		this._lowFrameRateSubscription = UpdateController.frameRateLowSubject.subscribe( isLow => {
+		UpdateController.frameRateLowSubject.subscribe( isLow => {
 			if ( isLow ) {
-				this._lowFrameRateSubscription.unsubscribe();
-				this.showFallback(Entry.LowFrameRate);
+				this._showFallback(Entry.LowFrameRate);
 			}
 		});
 
+	}
+
+	_loadHardSetting() {
+		let fromURL = false;
+		console.log(document.URL);
+		let url = new URL(document.URL);
+		let match = /fallback=(true|false)/.exec(url.query);
+		if ( match ) {
+			fromURL = true;
+			if ( match[1] == 'true' ) {
+				this._writeHardSetting();
+			}
+			else if ( match[1] == 'false' ) {
+				this._clearHardSetting();
+			}
+		}
+
+		if ( !fromURL ) {
+			let local = window.localStorage;
+			if ( local.getItem('hardFallback') ) {
+				this._hardSetting = true;
+			}
+		}
+
+	}
+
+	_writeHardSetting() {
+		window.localStorage.setItem('hardFallback', 'true');
+	}
+
+	_clearHardSetting() {
+		window.localStorage.deleteItem('hardFallback');
+	}
+
+	setFallback(v) {
+		if ( this._fallback != v ) {
+			if ( v && this._webGLSupport ) {
+				this._fallback = false;
+				this._fallbackSubject.next(false);
+				this._clearHardSetting();
+			}
+			else {
+				this._writeHardSetting();
+				this._showFallback(Entry.HardSetting);
+			}
+
+		}
+	}
+
+	get fallbackSubject() {
+		return this._fallbackSubject;
 	}
 
 	_setHeight(height) {
@@ -82,7 +148,7 @@ export class FallbackNotifier {
 		}
 	}
 
-	showFallback(entryFrom) {
+	_showFallback(entryFrom) {
 		if ( this._curState == NotifierState.Init ) {
 			let textDom = this._fallBackDom.querySelector('#text');
 			textDom.innerText = FallbackText[entryFrom];
@@ -91,8 +157,12 @@ export class FallbackNotifier {
 			this._setHeight(-this._domHeight);
 			this._curState = NotifierState.Show;
 			this._updateSubscription = UpdateController.updateSubject.subscribe( this.update.bind(this) );
+			this._fallback = true;
+			this._fallbackSubject.next(true);
 		}
 	}
 
 
 }
+
+export const FallbackNotifier = new _FallbackNotifier(5, 30);

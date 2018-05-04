@@ -1,3 +1,4 @@
+import { FallbackNotifier } from './fallbackNotifier.js';
 import { GLBase } from './gl.js';
 import { Subject } from 'rxjs';
 import { Rect } from './rect.js';
@@ -38,7 +39,7 @@ const ImageGLVertexShader = `
 varying vec2 texCoord;
 void main() {
 	texCoord = uv;
-	gl_Position = projectionMatrix * vec4( position, 1.0 );
+	gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4( position, 1.0 );
 }
 `;
 const ImageGLFragmentShader = `
@@ -79,7 +80,7 @@ const ImageGLState = {
 export class ImageGL {
 	constructor(domRoot, navController, url, imageStateTransitionTime, loadingIndicatorTime, loadingIndicatorFactory) {
 		this._domRoot = domRoot;
-		this._fallBackImg = null;
+		this._img = null;
 		this._loaded = false;
 		this._loadingIndicator = loadingIndicatorFactory.new();
 		this._loadingIndicatorTime = loadingIndicatorTime;
@@ -92,20 +93,21 @@ export class ImageGL {
 		this._stateTransitionOutStrengthStart = 0;
 		this._subscriptions = [];
 		this._url = url;
-		this._webGLSupport = GL.webGLSupport;
-		this._fallback = false;
-		this._loadedWebGL = false;
+		this._lastFallback = false;
+		this._firstLoad = false;
 		this._loader = new TextureLoader();
 
 		this._loader.load(url, (texture) => {
 			this._markLoaded(texture.image);
-			if ( this._webGLSupport ) {
+			if ( !this._lastFallback ) {
+				this._loadWebGL();
 				this._uniforms.tex.value = texture;
 				texture.minFilter = LinearFilter;
 			}
 			else {
 				this._loadImageFallBack();
 			}
+			this.resize();
 		});
 
 		this._subscriptions.push(UpdateController.updateSubject.subscribe( this._update.bind(this) ));
@@ -114,69 +116,86 @@ export class ImageGL {
 		}));
 		this._updateDomLoadingIndicator();
 
-		this._lowFrameRateSubscription = UpdateController.frameRateLowSubject.subscribe( e => {
-			if ( e ) {
-				this._lowFrameRateSubscription.unsubscribe();
-				this._loadImageFallBack();
+		FallbackNotifier.fallbackSubject.subscribe( e => {
+			if ( this._loaded ) {
+				this._cleanup();
+				if ( e ) {
+					this._loadImageFallBack();
+				}
+				else {
+					this._loadWebGL();
+				}
+				this._firstLoad = true;
+			}
+			else {
+				this._lastFallback = e;
 			}
 		});
-		this._subscriptions.push(this._lowFrameRateSubscription);
 
-		if ( this._webGLSupport ) {
-			this._loadedWebGL = true;
-			this._camera = new OrthographicCamera( -0.5, 0.5, 0.5, -0.5, 0, 1 );
-			this._scene = new Scene();
-			this._mesh = null;
-			this._uniforms = {
-				strength: { value: 0 },
-				tex: { value: null },
-			};
-			let material = new ShaderMaterial( {
-				uniforms: this._uniforms,
-				vertexShader: ImageGLVertexShader,
-				fragmentShader: ImageGLFragmentShader,
-			} );
-			material.transparent = true;
-			let geometry = new PlaneBufferGeometry(1, 1);
-			this._mesh = new Mesh(geometry, material);
-			this._scene.add(this._mesh);
+	}
+
+	_cleanup() {
+		if ( this._firstLoad ) {
+			if ( this._lastFallback ) {
+				this._domRoot.removeChild(this._img);
+			}
+			else {
+				this._transform = null;
+				this._uniforms = null;
+			}
 		}
+	}
+
+	_loadWebGL() {
+		this._lastFallback = false;
+
+		this._transform = null;
+		this._uniforms = {
+			strength: { value: 0 },
+			tex: { value: null },
+		};
+		let material = new ShaderMaterial( {
+			uniforms: this._uniforms,
+			vertexShader: ImageGLVertexShader,
+			fragmentShader: ImageGLFragmentShader,
+		} );
+		material.transparent = true;
+		let geometry = new PlaneBufferGeometry(1, 1);
+		let mesh = new Mesh(geometry, material);
+		this._transform = GL.add(mesh);
 	}
 
 	_markLoaded(image) {
 		this._loaded = true;
-		this._fallBackImg = image;
+		this._img = image;
 		this._loadedSubject.next();
 		this._updateDomLoadingIndicator();
 	}
 
-	_resizeAndAppendImageFallBack(img) {
-		this._resizeFallbackImage(img);
-		this._domRoot.appendChild(img);
+	_appendImageFallBack() {
+		this._domRoot.appendChild(this._img);
 	}
 
 	_loadImageFallBack() {
-		if ( !this._fallback && this._loaded ) {
-			this._fallback = true;
-			this._webGLSupport = false;
-			if ( this._loadedWebGL ) {
-				this._camera = null;
-				this._scene = null;
-				this._mesh = null;
-				this._uniforms = null;
-				this._loader = null
-			}
+		if ( !this._lastFallback && this._loaded ) {
+			this._lastFallback = true;
 			if ( this._domRoot != null ) {
-				this._resizeAndAppendImageFallBack(this._fallBackImg);
+				this._appendImageFallBack();
 			}
 		}
 	}
-	_resizeFallbackImage(img) {
+	_resizeImage() {
 		let displayRect = GetElementRect(this._domRoot);
-		let naturalSize = new Vector2(img.naturalWidth, img.naturalHeight);
+		let naturalSize = new Vector2(this._img.naturalWidth, this._img.naturalHeight);
 		let imgSize = Resize(displayRect, naturalSize);
-		img.width = imgSize.w;
-		img.height = imgSize.h;
+		if ( !this._lastFallback ) {
+			this._transform.scale.set(imgSize.w, imgSize.h, 1);
+		}
+		else {
+			this._img.width = imgSize.w;
+			this._img.height = imgSize.h;
+		}
+		return imgSize;
 	}
 
 	_setStateTransitionIn() {
@@ -201,7 +220,7 @@ export class ImageGL {
 		this._t+=dt;
 
 		if ( this._domRoot != null ) {
-			if ( this._loaded && this._webGLSupport ) {
+			if ( this._loaded && !this._lastFallback ) {
 				if ( this._curState == ImageGLState.Created && !this._transitioning) {
 					this._setStateTransitionIn();
 				}
@@ -228,11 +247,8 @@ export class ImageGL {
 					}
 				}
 
-				let containerRect = GetElementRect(this._domRoot)
-				let img = this._uniforms.tex.value.image;
-				let imgSize = new Vector2(img.width, img.height);
-				let rect = Resize(containerRect, imgSize);
-				GL.draw(this._scene, this._camera, rect, 100);
+				let rect = this._resizeImage();
+				this._transform.position.set(rect.x+rect.w/2, rect.y+rect.h/2, -10);
 			}
 			else {
 				if ( this._t >= this._nStateEnd ) {
@@ -248,21 +264,17 @@ export class ImageGL {
 
 	resize() {
 		if ( this._domRoot != null ) {
-			if ( this._webGLSupport ) {
-				this._setStateTrasitionInComplete();
+			if ( this._loaded ) {
+				this._resizeImage();
 			}
 			else {
-				this._resizeFallbackImage(this._fallBackImg);
-			}
-
-			if ( !this._loaded ) {
 				this._loadingIndicator.resize();
 			}
 		}
 	}
 
 	unload() {
-		if ( this._webGLSupport ) {
+		if ( !this._lastFallback ) {
 			this._setStateTransitionOut();
 		}
 	}
@@ -270,6 +282,7 @@ export class ImageGL {
 	destroy() {
 		this._loaded = false;
 		this._subscriptions.forEach( e => e.unsubscribe() );
+		GL.remove(this._transform);
 	}
 
 	_updateDomLoadingIndicator() {
@@ -286,15 +299,16 @@ export class ImageGL {
 	}
 	set domRoot(v) {
 		this._domRoot = v;
-		if ( !this._webGLSupport ) {
-			this._resizeAndAppendImageFallBack(this._fallBackImg);
+		this.resize();
+		if ( this._lastFallback ) {
+			this._appendImageFallBack();
 		}
 		this._updateDomLoadingIndicator();
 	}
 
 	get imageSize() {
 		if ( this._loaded ) {
-			let img = this._fallBackImg;
+			let img = this._img;
 			return new Vector2(img.naturalWidth, img.naturalHeight);
 		}
 		else {

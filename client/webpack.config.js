@@ -5,7 +5,7 @@ const CleanWebpackPlugin = require('clean-webpack-plugin');
 
 module.exports = {
 	mode: 'development',
-	entry: [ 'babel-polyfill', 'url-polyfill', './src/main.js' ],
+	entry: [ './src/main.js' ],
 	output: {
 		filename: 'bundle.js',
 		path: path.resolve(__dirname, 'dist'),
@@ -49,3 +49,50 @@ module.exports = {
 		new webpack.HotModuleReplacementPlugin(),
 	],
 }
+
+//module.exports = {
+//	mode: 'developmentIE11',
+//	entry: [ 'babel-polyfill', 'url-polyfill', './src/main.js' ],
+//	output: {
+//		filename: 'bundle.js',
+//		path: path.resolve(__dirname, 'distIE11'),
+//		publicPath: '/',
+//	},
+//	devtool: 'cheap-module-source-map',
+//	module: {
+//		rules: [
+//			{
+//				test: /\.css$/,
+//				use: [
+//					'style-loader',
+//					'css-loader',
+//				]
+//			},
+//			{
+//				test: /\.(html|svg)$/,
+//				use: {
+//					loader: 'html-loader',
+//					options: {
+//						attrs: [':data-src']
+//					}
+//				}
+//			},
+//			{
+//				test: /\.js$/,
+//				exclude: /node_modules/,
+//				loader: "babel-loader"
+//			},
+//		]
+//	},
+//	devServer: {
+//		open: false,
+//		hot: true,
+//		historyApiFallback: true,
+//	},
+//	plugins: [
+//		new HtmlWebpackPlugin(),
+//		new CleanWebpackPlugin(['distIE11']),
+//		new webpack.NamedModulesPlugin(),
+//		new webpack.HotModuleReplacementPlugin(),
+//	],
+//}

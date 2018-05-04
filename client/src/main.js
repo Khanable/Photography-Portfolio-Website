@@ -1,6 +1,5 @@
 import { Vector2 } from './vector.js';
 import { NavController, TransitionCurve } from './nav.js';
-import { FallbackNotifier } from './fallbackNotifier.js';
 import { GetNavFromUrl } from './util.js';
 import { UpdateController } from './update.js';
 import { Background } from './background.js';
@@ -28,7 +27,6 @@ export class App {
 		let domNav = document.createElement('div');
 		domNav.setAttribute('id', 'mainNavigation');
 		document.body.appendChild(domNav);
-		let fallback = new FallbackNotifier(5, 30);
 		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve, domNav, hostHtml, this._performAnimatedLoad.bind(this), AnimatedLoadSlideTransitionTime, SwipeThresholdFactor, SwipeChangeSlideThresholdT);
 		this._background = new Background(this._nav, domBackground);
 	}

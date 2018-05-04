@@ -107,21 +107,6 @@
        id="path4510-2"
        d="m 13.909539,254.7574 c -1.239601,1.3678 -1.936882,3.35045 -0.9375,4.81055 0.965998,1.36306 3.464971,2.32966 7.621094,2.75391 -4.255199,0.55325 -7.465673,1.93143 -9.433594,3.78515 -2.1352939,2.01138 -2.9647911,4.47035 -2.5546872,6.63281 0.4101038,2.16247 2.0657822,4.00935 4.7968752,4.78907 2.731093,0.77972 6.531364,0.50969 11.294922,-1.50196 0.244787,-0.10286 0.09049,-0.47004 -0.154297,-0.36718 -4.70554,1.98714 -9.191769,1.76971 -11.132422,0.94805 -1.940653,-0.82166 -2.83347,-1.63595 -3.7006378,-3.41302 -0.8671682,-1.77707 -0.5331059,-5.09963 1.5729038,-6.98061 1.890048,-1.68809 4.360072,-2.54849 9.376119,-3.50307 0.675766,-0.1286 2.503056,-0.45751 2.250307,-0.46645 -4.81585,-1.23413 -7.737362,-1.92321 -8.653525,-2.83937 -1.269616,-1.26962 -1.204454,-3.44645 -0.217944,-4.54761 3.112848,-3.11285 8.136913,-4.7041 10.73724,-2.16029 0.183016,0.20936 0.9345,-0.51515 0.73164,-0.70534 -3.277193,-2.71456 -9.360324,0.45142 -11.596491,2.76536 z"
        style="color:#000000;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:medium;line-height:normal;font-family:sans-serif;font-variant-ligatures:normal;font-variant-position:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-alternates:normal;font-feature-settings:normal;text-indent:0;text-align:start;text-decoration:none;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:#000000;letter-spacing:normal;word-spacing:normal;text-transform:none;writing-mode:lr-tb;direction:ltr;text-orientation:mixed;dominant-baseline:auto;baseline-shift:baseline;text-anchor:start;white-space:normal;shape-padding:0;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;vector-effect:none;fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.39687499;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate" />
-    <g
-       id="g47556-9"
-       style="display:inline"
-       transform="translate(-88.801617,257.92995)">
-      <path
-         transform="matrix(1.3587412,0,0,0.84593173,-17.189853,-201.85597)"
-         id="path4512-7-2-5"
-         d="m 33.298033,256.99924 c 1.512378,-2.08817 1.606123,-7.55303 1.089912,-1.02315 -0.891918,11.28244 -0.417142,22.84457 -6.227385,32.57677"
-         style="display:inline;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.37018406;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:normal" />
-      <path
-         transform="matrix(1.3587412,0,0,0.84593173,-17.189853,-201.85597)"
-         id="path4514-6-1"
-         d="m 33.514384,269.86663 c 1.936113,2.36313 10.68918,-14.12159 10.113487,-16.52872 -4.717675,3.56837 -5.416596,34.59013 -0.31775,36.30347"
-         style="display:inline;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.37018406;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
-    </g>
   </g>
   <g
      style="display:inline"
@@ -159,9 +144,5 @@
        id="path6875-8-8"
        d="M 27.523912,50.992952 C 14.136861,51.454236 2.5274448,40.63201 2.0667479,27.261939 1.606051,13.891867 12.442998,2.2962126 25.830058,1.8349312 39.217108,1.373653 50.826515,12.195866 51.287212,25.565934 51.747908,38.936001 40.910953,50.531667 27.523912,50.992952 Z"
        style="fill:none;fill-rule:evenodd;stroke:url(#linearGradient7639);stroke-width:0.12488333;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
-    <path
-       id="path4510-2-0"
-       d="m -64.01691,22.019816 c -5.092513,-5.28075 -23.104631,8.51917 -3.479582,9.8554 -19.204622,1.68853 -15.904507,21.54206 3.033687,13.54447"
-       style="display:inline;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.39687499;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
   </g>
 </svg>

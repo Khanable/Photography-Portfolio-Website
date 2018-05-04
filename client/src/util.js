@@ -39,7 +39,7 @@ export const GetWindowSize = function() {
 
 export const GetElementRect = function(domElement) {
 	let rect = domElement.getBoundingClientRect();
-	return new Rect(rect.x, rect.y, rect.width, rect.height);
+	return new Rect(rect.left, rect.top, rect.width, rect.height);
 }
 
 export const RandomRange = function(s, e) {
