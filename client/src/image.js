@@ -10,6 +10,8 @@ import { Color, TextureLoader, LinearFilter, OrthographicCamera, Scene, PlaneBuf
 import { MeshBasicMaterial } from 'three';
 import { Vector2 } from './vector.js';
 
+export const ForceLoadingKey = 'forceLoadingIndicator';
+
 const PhotoNameFormat = '{0}_{1}.{2}';
 const PhotoClasses = [
  2160, 1080, 720, 480
@@ -97,6 +99,9 @@ export class ImageGL {
 		this._firstLoad = false;
 		this._loader = new TextureLoader();
 
+		let local = window.localStorage;
+		this._forceLoadingIndicator = local.getItem(ForceLoadingKey) ? true : false ;
+
 		this._loader.load(url, (texture) => {
 			this._markLoaded(texture);
 		});
@@ -148,12 +153,14 @@ export class ImageGL {
 	}
 
 	_markLoaded(texture) {
-		this._loaded = true;
-		this._texture = texture;
-		this._texture.minFilter = LinearFilter;
-		this._img = texture.image;
-		this._loadedSubject.next();
-		this._updateDomLoadingIndicator();
+		if ( !this._forceLoadingIndicator ) {
+			this._loaded = true;
+			this._texture = texture;
+			this._texture.minFilter = LinearFilter;
+			this._img = texture.image;
+			this._loadedSubject.next();
+			this._updateDomLoadingIndicator();
+		}
 	}
 
 	_appendImageFallBack() {

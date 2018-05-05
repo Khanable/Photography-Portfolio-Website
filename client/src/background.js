@@ -208,11 +208,13 @@ export class Background {
 	}
 
 	_resize() {
-		if ( !this._lastFallback ) {
-			let windowSize = GetWindowSize();
-			this._transform.scale.set(windowSize.x, windowSize.y, 1);
-			this._transform.position.set(windowSize.x/2, windowSize.y/2, -100);
-			this._uniforms.resolution.value = new ThreeVector2(windowSize.x, windowSize.y);
+		if ( this._firstLoad ) {
+			if ( !this._lastFallback ) {
+				let windowSize = GetWindowSize();
+				this._transform.scale.set(windowSize.x, windowSize.y, 1);
+				this._transform.position.set(windowSize.x/2, windowSize.y/2, -100);
+				this._uniforms.resolution.value = new ThreeVector2(windowSize.x, windowSize.y);
+			}
 		}
 	}
 

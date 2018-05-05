@@ -3,7 +3,6 @@ import { default as fallbackNotifierHtml } from './fallbackNotifier.html';
 import { GetElementSize, LoadHtml } from './util.js';
 import { ReplaySubject } from 'rxjs/ReplaySubject';
 import * as Detector from 'three/examples/js/Detector.js';
-let URLParse = require('url-parse');
 
 const Entry = {
 	LowFrameRate: 0,
@@ -45,7 +44,34 @@ class _FallbackNotifier {
 		this._curState = NotifierState.Init;
 		this._nStateEnd = null;
 
-		this._loadHardSetting();
+		UpdateController.frameRateLowSubject.subscribe( isLow => {
+			if ( isLow ) {
+				this._showFallback(Entry.LowFrameRate);
+			}
+		});
+	}
+
+	loadHardSetting(set, v) {
+		if ( set ) {
+			if ( v ) {
+				this._writeHardSetting();
+				this._hardSetting = true;
+			}
+			else {
+				this._clearHardSetting();
+				this._hardSetting = false;
+			}
+		}
+		else {
+			let local = window.localStorage;
+			let fallback = local.getItem('hardFallback');
+			if ( fallback ) {
+				this._hardSetting = true;
+			}
+			else {
+				this._hardSetting = false;
+			}
+		}
 
 		if ( !this._webGLSupport ) {
 			this._showFallback(Entry.NoWEBGL);
@@ -55,35 +81,6 @@ class _FallbackNotifier {
 		}
 		else {
 			this._fallbackSubject.next(false);
-		}
-
-		UpdateController.frameRateLowSubject.subscribe( isLow => {
-			if ( isLow ) {
-				this._showFallback(Entry.LowFrameRate);
-			}
-		});
-	}
-
-	_loadHardSetting() {
-		let fromURL = false;
-		let url = new URLParse(document.URL);
-		let fallback = /fallback=(true|false)/.exec(url.query);
-		if ( fallback ) {
-			fromURL = true;
-			if ( fallback[1] == 'true' ) {
-				this._hardSetting = true;
-				this._writeHardSetting();
-			}
-			else if ( fallback[1] == 'false' ) {
-				this._clearHardSetting();
-			}
-		}
-
-		if ( !fromURL ) {
-			let local = window.localStorage;
-			if ( local.getItem('hardFallback') ) {
-				this._hardSetting = true;
-			}
 		}
 
 	}

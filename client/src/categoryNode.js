@@ -114,10 +114,7 @@ export class CategoryNode extends NavNode {
 	onResize() {
 		super.onResize();
 		this._resizeText();
-
-		//this._loadView();
-
-		//this._images.forEach( e => e.resize() );
+		this._images.forEach( e => e.resize() );
 	}
 
 	onUnload() {

@@ -5,6 +5,9 @@ import { UpdateController } from './update.js';
 import { Background } from './background.js';
 import { Graph, Location } from './navGraph.js'
 import { default as hostHtml } from './nav.html';
+import { FallbackNotifier } from './fallbackNotifier.js';
+import { ForceLoadingKey } from './image.js';
+let URLParse = require('url-parse');
 import './main.css';
 import './nav.css';
 
@@ -43,12 +46,36 @@ export class App {
 	}
 
 	init() {
+		this.startSettings();
 		let navNode = Graph.getFromUrl(document.URL);
 		this._nav.load(navNode);
 		UpdateController.start();
 	}
 	get navController() {
 		return this._nav;
+	}
+
+	startSettings() {
+		let url = new URLParse(document.URL);
+		let fallback = /fallback=(true|false)/.exec(url.query);
+		let forceLoading = /forceLoading=(true|false)/.exec(url.query);
+		let local = window.localStorage;
+		if ( fallback ) {
+			FallbackNotifier.loadHardSetting(true, fallback[1] == 'true' ? true : false);
+		}
+		else {
+			FallbackNotifier.loadHardSetting(false);
+		}
+
+		if ( forceLoading ) {
+			let setting = forceLoading[1] == 'true' ? true : false;
+			if ( setting ) {
+				local.setItem(ForceLoadingKey, 'true');
+			}
+			else {
+				local.removeItem(ForceLoadingKey);
+			}
+		}
 	}
 }
 

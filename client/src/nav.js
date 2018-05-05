@@ -327,7 +327,7 @@ export class NavController {
 		paths.forEach( e => e.setAttribute('d', defs.join(' ')) );
 
 		//set text size
-		let arrows = this._domRoot.querySelectorAll(ArrowSelector);
+		let arrows = Array.from(this._domRoot.querySelectorAll(ArrowSelector));
 		for( let arrow of arrows ) {
 			SizeText(arrow, NavArrowFontSize, true); 
 		}

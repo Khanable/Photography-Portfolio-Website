@@ -51,8 +51,8 @@ class LogoLoadingIndicatorController {
 	}
 
 	_parseAndSetup() {
-		let stops = this._logoDom.querySelectorAll('stop');
-		let paths = this._logoDom.querySelectorAll('path');
+		let stops = Array.from(this._logoDom.querySelectorAll('stop'));
+		let paths = Array.from(this._logoDom.querySelectorAll('path'));
 		let domain = [];
 		stops.forEach( e => domain.push(e) );
 		paths.forEach( e => domain.push(e) );
