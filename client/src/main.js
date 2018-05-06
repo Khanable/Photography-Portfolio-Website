@@ -10,6 +10,7 @@ import { ForceLoadingKey } from './image.js';
 let URLParse = require('url-parse');
 import './main.css';
 import './nav.css';
+import { Message } from './message.js';
 
 //Seconds
 const SlideTransitionTime = 0.5;
@@ -24,14 +25,8 @@ const SlideTransitionCurve = new TransitionCurve(
 
 export class App {
 	constructor() {
-		let domBackground = document.createElement('div');
-		domBackground.setAttribute('id', 'mainBackground');
-		document.body.appendChild(domBackground);
-		let domNav = document.createElement('div');
-		domNav.setAttribute('id', 'mainNavigation');
-		document.body.appendChild(domNav);
-		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve, domNav, hostHtml, this._performAnimatedLoad.bind(this), AnimatedLoadSlideTransitionTime, SwipeThresholdFactor, SwipeChangeSlideThresholdT);
-		this._background = new Background(this._nav, domBackground);
+		this._nav = null;
+		this._background = null;
 	}
 
 	_performAnimatedLoad(navNode) {
@@ -47,6 +42,14 @@ export class App {
 
 	init() {
 		this.startSettings();
+		let domBackground = document.createElement('div');
+		domBackground.setAttribute('id', 'mainBackground');
+		document.body.appendChild(domBackground);
+		let domNav = document.createElement('div');
+		domNav.setAttribute('id', 'mainNavigation');
+		document.body.appendChild(domNav);
+		this._nav = new NavController(Graph, SlideTransitionTime, SlideTransitionCurve, domNav, hostHtml, this._performAnimatedLoad.bind(this), AnimatedLoadSlideTransitionTime, SwipeThresholdFactor, SwipeChangeSlideThresholdT);
+		this._background = new Background(this._nav, domBackground);
 		let navNode = Graph.getFromUrl(document.URL);
 		this._nav.load(navNode);
 		UpdateController.start();
@@ -67,15 +70,21 @@ export class App {
 			FallbackNotifier.loadHardSetting(false);
 		}
 
+		let showForceLoadingMessage = false;
 		if ( forceLoading ) {
 			let setting = forceLoading[1] == 'true' ? true : false;
 			if ( setting ) {
 				local.setItem(ForceLoadingKey, 'true');
+				showForceLoadingMessage = true;
 			}
 			else {
 				local.removeItem(ForceLoadingKey);
 			}
 		}
+		if ( showForceLoadingMessage || local.getItem(ForceLoadingKey) ) {
+			Message.showMessage('Force loading indicator enabled');
+		}
+
 	}
 }
 

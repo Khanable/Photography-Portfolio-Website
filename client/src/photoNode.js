@@ -22,9 +22,7 @@ export class PhotoNode extends NavNode {
 		super.onLoad(domNode);
 		this._domMain = domNode.querySelector('#photoContainer');
 		this._imageGL = new ImageGL(Controller.navController, GetPhotoClassUrl(this._domMain, this._photoUrl), this._imageTransitionTime, this._loadingIndicatorTime, this._loadingIndicatorFactory);
-		this._imageGL.loadedSubject.subscribe( () => {
-			this._imageGL.domRoot = this._domMain;
-		});
+		this._imageGL.domRoot = this._domMain;
 	}
 
 	onResize() {

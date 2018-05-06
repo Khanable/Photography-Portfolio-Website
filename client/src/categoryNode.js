@@ -51,7 +51,7 @@ export class CategoryNode extends NavNode {
 			this._categoryNode.appendChild(curRow);
 			for ( let j = 0; j < this._numPerRow; j++ ) {
 				let curIndex = i*this._numPerRow+j;
-				if ( curIndex < this._images.length ) {
+				if ( curIndex < this._photoUrls.length ) {
 					let curCell = this._domCell.cloneNode(true);
 					curRow.appendChild(curCell);
 					cells.push(curCell);
@@ -82,10 +82,13 @@ export class CategoryNode extends NavNode {
 		let numRows = Math.ceil(this._photoUrls.length/this._numPerRow);
 
 		//Adjust the Cell size to fit the smallest dimension of the images.
-		this._setupTable(numRows, new Vector2(baseCellSize.x*this._numPerRow, baseCellSize.y));
-		for( let url of this._photoUrls ) {
+		let cells = this._setupTable(numRows, new Vector2(baseCellSize.x*this._numPerRow, baseCellSize.y));
+		for( let i = 0; i < cells.length; i++ ) {
+			let url = this._photoUrls[i];
+			let cellDom = cells[i];
 			let photoClass = GetMatchingPhotoClassSize(baseCellSize);
 			let image = new ImageGL(Controller.navController, GetPhotoUrl(url, photoClass), this._imageTransitionTime, this._loadingTransitionTime, this._loadingIndicatorFactory);
+			image.domRoot = cellDom;
 			this._images.push(image);
 			this._subscriptions.push(image.loadedSubject.subscribe( () => {
 				if ( this._images.every( e => e.isLoaded ) ) {

@@ -110,7 +110,6 @@ export class ImageGL {
 		this._subscriptions.push(navController.transitioning.subscribe( state => {
 			this._transitioning = state;
 		}));
-		this._updateDomLoadingIndicator();
 
 		FallbackNotifier.fallbackSubject.subscribe( e => {
 			this._init(e);
@@ -282,7 +281,7 @@ export class ImageGL {
 			if ( this._loaded && indicatorParent != null ) {
 				this._domRoot.removeChild(this._loadingIndicator.domNode);
 			}
-			else if ( !this._loaded ){
+			else if ( !this._loaded ) {
 				this._domRoot.appendChild(this._loadingIndicator.domNode);
 				this._loadingIndicator.resize();
 			}
