@@ -137,17 +137,19 @@ export class Background {
 		};
 
 		FallbackNotifier.fallbackSubject.subscribe( e => {
-			if ( this._firstLoad ) {
-				this._cleanup();
-			}
+			if ( !this._firstLoad || e != this._lastFallback ) {
+				if ( this._firstLoad ) {
+					this._cleanup();
+				}
 
-			if ( e ) {
-				this._loadFallbackDom();
+				if ( e ) {
+					this._loadFallbackDom();
+				}
+				else {
+					this._loadWebGL();
+				}
+				this._firstLoad = true;
 			}
-			else {
-				this._loadWebGL();
-			}
-			this._firstLoad = true;
 		});
 
 		this._resize();

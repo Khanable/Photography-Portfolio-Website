@@ -104,6 +104,7 @@ export class ImageGL {
 
 		this._loader.load(url, (texture) => {
 			this._markLoaded(texture);
+			this._init(this._lastFallback);
 		});
 
 		this._subscriptions.push(UpdateController.updateSubject.subscribe( this._update.bind(this) ));
@@ -177,7 +178,9 @@ export class ImageGL {
 		let naturalSize = new Vector2(this._img.naturalWidth, this._img.naturalHeight);
 		let imgSize = Resize(displayRect, naturalSize);
 		if ( !this._lastFallback ) {
-			this._transform.scale.set(imgSize.w, imgSize.h, 1);
+			if ( imgSize.w > 0 && imgSize.h > 0 ) {
+				this._transform.scale.set(imgSize.w, imgSize.h, 1);
+			}
 		}
 		else {
 			this._img.width = imgSize.w;
@@ -262,7 +265,7 @@ export class ImageGL {
 	}
 
 	unload() {
-		if ( !this._lastFallback ) {
+		if ( this._loaded && !this._lastFallback ) {
 			this._setStateTransitionOut();
 		}
 	}
@@ -270,7 +273,7 @@ export class ImageGL {
 	destroy() {
 		this._loaded = false;
 		this._subscriptions.forEach( e => e.unsubscribe() );
-		if ( !this._lastFallback ) {
+		if ( !this._lastFallback && this._transform != null ) {
 			GL.remove(this._transform);
 		}
 	}
@@ -289,7 +292,7 @@ export class ImageGL {
 	}
 
 	_init(fallbackState) {
-		if ( this._loaded ) {
+		if ( this._loaded && (!this._firstLoad || fallbackState != this._lastFallback) ) {
 			if ( this._firstLoad ) {
 				this._cleanup();
 			}

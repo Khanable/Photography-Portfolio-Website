@@ -7,7 +7,7 @@ import { Graph, Location } from './navGraph.js'
 import { default as hostHtml } from './nav.html';
 import { FallbackNotifier } from './fallbackNotifier.js';
 import { ForceLoadingKey } from './image.js';
-let URLParse = require('url-parse');
+import { default as URLParse } from 'url-parse';
 import './main.css';
 import './nav.css';
 import { Message } from './message.js';

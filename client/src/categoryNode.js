@@ -42,12 +42,19 @@ export class CategoryNode extends NavNode {
 		this._domRow = categoryDom.querySelector(SelectorRow);
 	}	
 
-	_setupTable(numRows, rowSize) {
-		RemoveAllChildren(this._categoryNode);
+	_adjustTable(rows, rowSize) {
+		for( let row of rows ) {
+			row.setAttribute('style', 'width:{0}px;height:{1}px;'.format(rowSize.x,rowSize.y));
+		}
+	}
+
+	_setupTable() {
+		let numRows = Math.ceil(this._photoUrls.length/this._numPerRow);
+		let rows = [];
 		let cells = [];
 		for( let i = 0; i < numRows; i++ ) {
 			let curRow = this._domRow.cloneNode(true);
-			curRow.setAttribute('style', 'width:{0}px;height:{1}px;'.format(rowSize.x,rowSize.y));
+			rows.push(curRow);
 			this._categoryNode.appendChild(curRow);
 			for ( let j = 0; j < this._numPerRow; j++ ) {
 				let curIndex = i*this._numPerRow+j;
@@ -61,17 +68,20 @@ export class CategoryNode extends NavNode {
 				}
 			}
 		}
-		return cells;
+		return Object.freeze({
+			cells: cells,
+			rows: rows,
+		});
 	}
 
-	_completeLoad(baseCellSize, numRows) {
+	_completeLoad(table, baseCellSize) {
 		let sizes = this._images.map( e => Resize(new Rect(0, 0, baseCellSize.x, baseCellSize.y), e.imageSize) );
 		let sizesY = sizes.map( e => e.h ).sort( (a, b) => b-a );
 		let cellSizeY = sizesY.pop();
 		let rowSizeX = sizes.map( e => e.w ).sort( (a, b) => a-b ).slice(this._numPerRow);
 		rowSizeX = rowSizeX.reduce( (acc, cv) => acc+cv, 0);
-		let cells = this._setupTable(numRows, new Vector2(rowSizeX, cellSizeY));
-		cells.forEach( (e, i) => this._images[i].domRoot = e );
+		this._adjustTable(table.rows, new Vector2(rowSizeX, cellSizeY));
+		table.cells.forEach( (e, i) => this._images[i].domRoot = e );
 	}
 
 	_loadView() {
@@ -79,10 +89,11 @@ export class CategoryNode extends NavNode {
 
 		let viewSize = GetElementSize(this._categoryNode);
 		let baseCellSize = viewSize.div(this._photoUrls.length/this._numPerRow);
-		let numRows = Math.ceil(this._photoUrls.length/this._numPerRow);
 
 		//Adjust the Cell size to fit the smallest dimension of the images.
-		let cells = this._setupTable(numRows, new Vector2(baseCellSize.x*this._numPerRow, baseCellSize.y));
+		let table = this._setupTable();
+		let cells = table.cells;
+		this._adjustTable(table.rows, new Vector2(baseCellSize.x*this._numPerRow, baseCellSize.y));
 		for( let i = 0; i < cells.length; i++ ) {
 			let url = this._photoUrls[i];
 			let cellDom = cells[i];
@@ -92,7 +103,7 @@ export class CategoryNode extends NavNode {
 			this._images.push(image);
 			this._subscriptions.push(image.loadedSubject.subscribe( () => {
 				if ( this._images.every( e => e.isLoaded ) ) {
-					this._completeLoad(baseCellSize, numRows);
+					this._completeLoad(table, baseCellSize);
 				}
 			}));
 		}

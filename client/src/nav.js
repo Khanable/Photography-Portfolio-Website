@@ -4,7 +4,7 @@ import { Vector2 } from './vector.js';
 import { RemoveAllChildren,SizeText, AppendDomNodeChildren, AppendAttribute, GetElementSize, LoadHtml, RandomRange } from './util.js';
 import { Subject, ReplaySubject } from 'rxjs';
 import './util.js';
-let URLParse = require('url-parse');
+import { default as URLParse } from 'url-parse';
 
 const ContentSelector = '#navContent';
 const ArrowNorthSelector = '#navArrowN';
@@ -139,7 +139,7 @@ export class NavController {
 					}
 				}
 				else {
-					loadLocation = true;;
+					loadLocation = true;
 				}
 
 				if ( loadLocation ) {
@@ -437,6 +437,7 @@ export class NavController {
 	}
 
 	_load(navNode) {
+		this._endTransition();
 		this._init();
 		if ( this._curNode != null ) {
 			this._curNode.onDestroy();
@@ -465,7 +466,6 @@ export class NavController {
 		}
 		else {
 			this._load(navNode);
-			this._setTransitioning(false);
 			this._curTransitionTime = this._transitionTime;
 		}
 	}
@@ -552,29 +552,31 @@ export class NavController {
 	}
 
 	_endTransition() {
-		this._setTransitioning(false);
-		let endNodeIndex = 0;
-		if ( this._transitionNodes.length > 1 ) {
-			if ( this._transitionT >= 1 ) {
-				this._transitionNodes[0].navNode.onDestroy();
-				endNodeIndex = 1;
+		if ( this._transitioning ) {
+			this._setTransitioning(false);
+			let endNodeIndex = 0;
+			if ( this._transitionNodes.length > 1 ) {
+				if ( this._transitionT >= 1 ) {
+					this._transitionNodes[0].navNode.onDestroy();
+					endNodeIndex = 1;
+				}
+				else {
+					this._transitionNodes[1].navNode.onDestroy();
+					endNodeIndex = 0;
+				}
 			}
-			else {
-				this._transitionNodes[1].navNode.onDestroy();
-				endNodeIndex = 0;
+
+			let endTransitionNode = this._transitionNodes[endNodeIndex];
+			this._curNode = this._transitionNodes[endNodeIndex].navNode;
+			endTransitionNode.end();
+
+
+			this._append(this._domRoot, endTransitionNode.node);
+			for( let transitionNode of this._transitionNodes ) {
+				this._domRoot.removeChild(transitionNode.node);
 			}
+			this._transitionNodes = null;
 		}
-
-		let endTransitionNode = this._transitionNodes[endNodeIndex];
-		this._curNode = this._transitionNodes[endNodeIndex].navNode;
-		endTransitionNode.end();
-
-
-		this._append(this._domRoot, endTransitionNode.node);
-		for( let transitionNode of this._transitionNodes ) {
-			this._domRoot.removeChild(transitionNode.node);
-		}
-		this._transitionNodes = null;
 	}
 
 }
