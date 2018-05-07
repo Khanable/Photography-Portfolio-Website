@@ -152,17 +152,15 @@ export class NavController {
 		window.addEventListener('resize', this._resize.bind(this));
 
 
-		//?If agent is mobile device
 		let swipeEventListener = function(method) {
 			return function(event) {
 				method(new Vector2(event.clientX, event.clientY))
 			}
 		}
-		//?Change to touch once testing done
-		//https://developer.mozilla.org/en-US/docs/Web/Events/touchstart
-		//this._domRoot.addEventListener('mousedown', swipeEventListener(this._swipeStart.bind(this)));
-		//this._domRoot.addEventListener('mousemove', swipeEventListener(this._swipeMove.bind(this)));
-		//this._domRoot.addEventListener('mouseup', swipeEventListener(this._swipeEnd.bind(this)));
+		this._domRoot.addEventListener('touchstart', swipeEventListener(this._swipeStart.bind(this)));
+		this._domRoot.addEventListener('touchmove', swipeEventListener(this._swipeMove.bind(this)));
+		this._domRoot.addEventListener('touchend', swipeEventListener(this._swipeEnd.bind(this)));
+		this._domRoot.addEventListener('touchcancel', swipeEventListener(this._swipeEnd.bind(this)));
 	}
 
 	_getSwipeT(pos) {
@@ -217,7 +215,7 @@ export class NavController {
 		}
 	}
 	_swipeStart(pos) {
-		if ( !this._transitioning ) {
+		if ( !this._startedSwipe && !this._transitioning ) {
 			this._startedSwipe = true;
 			this._swipeStartPos = pos;
 			this._curSwipeDir = null;

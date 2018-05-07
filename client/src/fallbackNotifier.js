@@ -90,10 +90,12 @@ class _FallbackNotifier {
 	}
 
 	_showFallback(entryFrom) {
-		let text = FallbackText[entryFrom];
-		this._fallback = true;
-		this._fallbackSubject.next(true);
-		Message.showMessage(text);
+		if ( !this._fallback ) {
+			let text = FallbackText[entryFrom];
+			this._fallback = true;
+			this._fallbackSubject.next(true);
+			Message.showMessage(text);
+		}
 	}
 }
 
